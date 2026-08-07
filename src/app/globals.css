@@ -1,26 +1,191 @@
+/* 어디갈래 / whereto — 디자인 토큰
+ *
+ * 기획서 §14. Tailwind v4 는 tailwind.config.ts 가 없고 여기 @theme 블록이 설정이다.
+ *
+ * 원칙 (§14.3)
+ *   - 정보 밀도 우선. 여백 넉넉한 SaaS 스타일 금지. 본문 13~14px, 좁은 행간, 얇은 구분선
+ *   - shadcn/ui 를 쓰더라도 헤드리스 동작만 취하고 룩은 이 토큰으로 전면 재정의한다
+ *   - 랭킹표는 표처럼 보여야 한다. 카드 그리드로 바꾸지 않는다
+ *
+ * 색 (§14.4)
+ *   - 베이스는 네이비/인디고. 많은 대학이 파랑을 써서 역설적으로 특정 학교를 연상시키지 않는다
+ *   - 채도 높은 블루는 포인트에만
+ *   - 그레이 스케일을 넓게 — 고밀도 표에서 회색 단계가 실질적인 정보 위계를 만든다
+ */
+
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 @import "tailwindcss";
 
+@theme {
+  /* ── 타이포 ────────────────────────────────────────────────
+   * §14.3 본문 13~14px. Tailwind 기본(16px)을 그대로 두면 밀도가 무너진다.
+   * text-base 가 14px 이라는 점을 전제로 화면을 짠다. */
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --text-2xs: 0.6875rem;              /* 11px — 배지, 캡션 */
+  --text-2xs--line-height: 1.35;
+  --text-xs: 0.75rem;                 /* 12px — 표 보조 컬럼 */
+  --text-xs--line-height: 1.4;
+  --text-sm: 0.8125rem;               /* 13px — 표 본문 */
+  --text-sm--line-height: 1.45;
+  --text-base: 0.875rem;              /* 14px — 기본 본문 */
+  --text-base--line-height: 1.6;
+  --text-lg: 1rem;                    /* 16px */
+  --text-lg--line-height: 1.55;
+  --text-xl: 1.125rem;                /* 18px — 섹션 제목 */
+  --text-xl--line-height: 1.45;
+  --text-2xl: 1.375rem;               /* 22px */
+  --text-2xl--line-height: 1.35;
+  --text-3xl: 1.75rem;                /* 28px — 투표 화면 대학명 */
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 2.25rem;                /* 36px — 선호도 지수 강조 */
+  --text-4xl--line-height: 1.1;
+
+  /* ── 네이비 / 인디고 (베이스) ──────────────────────────────── */
+  --color-navy-50:  #f4f6fb;
+  --color-navy-100: #e6ebf6;
+  --color-navy-200: #cbd6ec;
+  --color-navy-300: #a3b6dd;
+  --color-navy-400: #7590c8;
+  --color-navy-500: #5270b0;
+  --color-navy-600: #3d5694;
+  --color-navy-700: #324577;
+  --color-navy-800: #2b3a60;
+  --color-navy-900: #232f4d;
+  --color-navy-950: #161e33;
+
+  /* ── 액센트 블루 (포인트 전용) ──────────────────────────────
+   * §14.4 "포인트에만 채도 높은 블루". 넓은 면적에 쓰지 않는다. */
+  --color-accent-300: #6fb1ff;
+  --color-accent-400: #3d94ff;
+  --color-accent-500: #1a7aff;
+  --color-accent-600: #0b60e0;
+  --color-accent-700: #0a4db3;
+
+  /* ── 그레이 (거의 무채색, 아주 옅은 쿨 캐스트) ──────────────
+   * 네이비와 붙었을 때 탁해지지 않을 정도로만 차갑게. 단계를 촘촘히 둔다. */
+  --color-gray-25:  #fafbfc;
+  --color-gray-50:  #f5f6f8;
+  --color-gray-100: #eceef1;
+  --color-gray-150: #e4e7eb;
+  --color-gray-200: #dfe2e7;
+  --color-gray-300: #c8ccd3;
+  --color-gray-400: #a1a7b1;
+  --color-gray-500: #7a818d;
+  --color-gray-600: #5c636e;
+  --color-gray-700: #454b55;
+  --color-gray-800: #31363e;
+  --color-gray-900: #1f232a;
+  --color-gray-950: #131519;
+
+  /* ── 상태 색 ─────────────────────────────────────────────── */
+  --color-warn-400: #f0a13a;          /* §4.2.2 '표본 부족' 주황 점 */
+  --color-warn-600: #b3700f;
+  --color-danger-500: #d9483f;
+  --color-danger-600: #b53831;
+  --color-success-500: #2f9e6d;
+
+  /* ── 모서리 / 구분선 ─────────────────────────────────────────
+   * §14.3 얇은 구분선. 둥글기를 작게 가져가야 표가 표처럼 보인다. */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ── 레이아웃 ────────────────────────────────────────────────
+   * §14.2 데스크톱 최대 폭을 제한해 좌우 여백이 과하게 벌어지지 않게 한다.
+   * 전환점은 Tailwind 기본 lg(1024px). */
+  --container-app: 1200px;
+  --container-narrow: 840px;
+}
+
+/* ── 시맨틱 토큰 ───────────────────────────────────────────────
+ * 역할 이름으로 한 겹 감싼다. 화면 코드는 navy-800 이 아니라 fg 를 쓴다.
+ * §14.5 다크모드는 P1 — 그때 이 블록만 .dark 로 복제하면 되도록 구조를 잡아둔다.
+ * (스캐폴딩 기본값에 있던 prefers-color-scheme 자동 다크는 제거했다.
+ *  준비 안 된 상태로 켜지면 대비가 무너진다.) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: var(--color-gray-50);          /* 페이지 바닥 */
+  --surface: #ffffff;                      /* 카드 · 표 배경 */
+  --surface-sunken: var(--color-gray-100); /* 표 헤더, 강조 없는 영역 */
+
+  --line: var(--color-gray-200);           /* 기본 구분선 */
+  --line-strong: var(--color-gray-300);    /* 표 외곽, 그룹 경계 */
+
+  --fg: var(--color-gray-900);             /* 본문 */
+  --fg-muted: var(--color-gray-600);       /* 보조 정보 */
+  --fg-subtle: var(--color-gray-500);      /* 캡션, 비활성 */
+  --fg-on-brand: #ffffff;
+
+  --brand: var(--color-navy-800);          /* 헤더, 주요 액션 */
+  --brand-hover: var(--color-navy-700);
+  --accent: var(--color-accent-500);       /* 포인트 — 넓게 쓰지 않는다 */
+  --accent-hover: var(--color-accent-600);
+
+  /* §4.2.2 신뢰도 배지 */
+  --badge-provisional: var(--color-gray-400);   /* '잠정' — 점수 회색 처리 */
+  --badge-low-sample: var(--color-warn-400);    /* '표본 부족' — 주황 점 */
+
+  /* §4.2 순위 변동. 한국 관례(상승 빨강 / 하락 파랑)를 따르되,
+   * 액센트 블루와 싸우지 않도록 둘 다 채도를 낮춘다. */
+  --rank-up: #c2544b;
+  --rank-down: #4d6fa8;
+  --rank-same: var(--color-gray-400);
+
+  /* ⚠️ §14.4 투표 화면 좌우 카드는 색으로 구분하지 않는다.
+   * 파랑 vs 빨강 같은 배색은 특정 학교 상징색을 연상시켜 선택에 영향을 준다.
+   * 두 카드는 반드시 같은 토큰을 쓰고, 선택한 순간에만 vote-selected 가 붙는다. */
+  --vote-card: #ffffff;
+  --vote-card-hover: var(--color-gray-50);
+  --vote-card-line: var(--color-gray-300);
+  --vote-selected: var(--color-accent-500);
+  --vote-selected-bg: var(--color-navy-50);
 }
 
+/* 시맨틱 토큰을 Tailwind 유틸리티로 노출 — bg-surface, text-fg-muted, border-line ... */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-on-brand: var(--fg-on-brand);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-badge-provisional: var(--badge-provisional);
+  --color-badge-low-sample: var(--badge-low-sample);
+  --color-rank-up: var(--rank-up);
+  --color-rank-down: var(--rank-down);
+  --color-rank-same: var(--rank-same);
+  --color-vote-card: var(--vote-card);
+  --color-vote-card-hover: var(--vote-card-hover);
+  --color-vote-card-line: var(--vote-card-line);
+  --color-vote-selected: var(--vote-selected);
+  --color-vote-selected-bg: var(--vote-selected-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    /* 한글 가독성 — 자간을 살짝 조여 고밀도에서 뭉치지 않게 한다 */
+    letter-spacing: -0.01em;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* 숫자는 표에서 자리수가 흔들리면 안 된다 (선호도 지수, 순위, 표본 수) */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }

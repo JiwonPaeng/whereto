@@ -798,6 +798,12 @@ vote_submit(token, winner_id, reason, reason_public, response_ms):
 
 **⚠️ `layout.tsx`에서 쿠키를 읽지 않는다.** 읽는 순간 모든 페이지가 동적 렌더링이 되어 위 ISR이 통째로 무력화된다. 전역 헤더는 로그인 상태 없이 동작하며, `/profile`이 비로그인 시 리다이렉트한다.
 
+**⚠️ Vercel 함수 리전은 `icn1`(서울)로 고정한다** (`vercel.json`). 기본값은 `iad1`(워싱턴DC)이라 Supabase(`ap-northeast-2`)와 태평양을 왕복하게 되고, 쿼리 하나마다 200~300ms가 붙는다. 실측으로 `/vote`가 1.44초였다.
+
+**⚠️ `proxy.ts`는 인증 쿠키가 없으면 즉시 반환한다.** `getUser()`가 네트워크 왕복이라, 이 검사가 없으면 prerender 된 정적 페이지까지 매 요청 왕복 비용을 문다.
+
+**⚠️ Supabase의 `db-max-rows`는 1000이며 `limit`·`Range`로 넘길 수 없다.** 1000행을 넘길 수 있는 조회는 반드시 `.range()`로 페이지네이션한다. 안 하면 조용히 잘린다 — 배치표가 1,763개 중 1,000개만 그리고 있었다.
+
 ISR 페이지는 쿠키를 읽지 않는 `createPublicClient()`를 쓴다.
 
 **Program 상세를 전부 프리렌더하지 않는다.** 2,000개를 빌드마다 만들면 페이지당 5회 가까운 쿼리가 만 번 단위로 돈다. `dynamicParams` 기본값 덕에 목록 밖 Program도 첫 요청에 생성되어 이후 캐시되므로, 표본이 많은 상위 300개만 미리 만든다.

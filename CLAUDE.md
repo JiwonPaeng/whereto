@@ -48,6 +48,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ⚠️ **`pg_cron`은 UTC로 돈다.** 한국 시각으로 착각하면 배치가 9시간 어긋난다. (§13.3)
 
+⚠️ **Supabase `db-max-rows` = 1000. `limit`·`Range`로 못 넘긴다.** 1000행을 넘을 수 있는 조회는 `.range()`로 페이지네이션할 것. 안 하면 **조용히 잘린다** — 실제로 배치표가 1,763개 중 1,000개만 그리고 있었다. (§13.3)
+
+⚠️ **서버측 Supabase 호출은 왕복 비용이 있다.** Vercel 리전은 `vercel.json`에서 `icn1`로 고정돼 있고(기본값 `iad1`이면 태평양을 건넌다), `proxy.ts`는 인증 쿠키가 없으면 즉시 반환한다. 같은 페이지에서 여러 쿼리를 던질 때는 `Promise.all`로 묶을 것. (§13.3)
+
 ⚠️ **RLS로 컬럼을 가릴 수 없다.** 타 유저에게 일부 컬럼만 보여야 하는 곳은 전부 노출 컬럼을 고정한 **뷰**로 처리한다. `public_*` 뷰를 수정할 때는 무엇이 새어나가는지 컬럼 단위로 확인할 것. (§9.6)
 
 ⚠️ **`votes`에 INSERT 정책이 없는 것은 실수가 아니다.** 직접 INSERT를 열면 클라이언트가 ELO 값을 지정할 수 있다. 기록은 `vote_submit` RPC로만 이루어진다. (§8.2)

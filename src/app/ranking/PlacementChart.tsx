@@ -37,6 +37,16 @@ const TARGET_SPAN_PX = 2200;
 const MIN_PX_PER_POINT = 1.5;
 const MAX_PX_PER_POINT = 60;
 
+/**
+ * 한 대학 안에서 지수가 크게 벌어진 학과는 **블록을 나눈다.**
+ *
+ * 의약처럼 소속 대학 수준을 완전히 벗어나는 학과가 있으면, 그 대학 블록이 세로로
+ * 지나치게 길어져 다른 대학과 전부 겹치고 컬럼 패킹이 무의미해진다.
+ * 다만 조금만 벌어져도 쪼개면 블록이 잘게 부서지므로 임계를 넉넉히 잡는다.
+ */
+const SPLIT_GAP_RATIO = 0.2; // 전체 지수 범위 대비
+const SPLIT_GAP_MIN = 25; // 최소 지수 격차
+
 /** 눈금이 8~12개 나오도록 사람이 읽기 좋은 간격을 고른다. */
 function niceStep(range: number): number {
   const raw = Math.max(range / 10, 0.5);
@@ -89,25 +99,43 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
       byUniv.get(key)!.push(r);
     }
 
+    const splitGap = Math.max(SPLIT_GAP_MIN, range * SPLIT_GAP_RATIO);
+
     const raw: Omit<Block, "col">[] = [];
     for (const [key, list] of byUniv) {
       const [university, campus] = key.split("|");
       const sorted = [...list].sort((a, b) => b.elo_display - a.elo_display);
-      const items: Placed[] = [];
-      let cursor = -Infinity;
+
+      // 지수가 splitGap 이상 벌어지면 같은 대학이라도 블록을 끊는다.
+      const clusters: RankRow[][] = [];
+      let current: RankRow[] = [];
       for (const r of sorted) {
-        const ideal = (maxElo - r.elo_display) * pxPerPoint;
-        const y = Math.max(ideal, cursor + ROW_H);
-        items.push({ ...r, y });
-        cursor = y;
+        const prev = current[current.length - 1];
+        if (prev && prev.elo_display - r.elo_display > splitGap) {
+          clusters.push(current);
+          current = [];
+        }
+        current.push(r);
       }
-      raw.push({
-        university,
-        campus,
-        items,
-        top: items[0].y,
-        bottom: items[items.length - 1].y + ROW_H,
-      });
+      if (current.length > 0) clusters.push(current);
+
+      for (const cluster of clusters) {
+        const items: Placed[] = [];
+        let cursor = -Infinity;
+        for (const r of cluster) {
+          const ideal = (maxElo - r.elo_display) * pxPerPoint;
+          const y = Math.max(ideal, cursor + ROW_H);
+          items.push({ ...r, y });
+          cursor = y;
+        }
+        raw.push({
+          university,
+          campus,
+          items,
+          top: items[0].y,
+          bottom: items[items.length - 1].y + ROW_H,
+        });
+      }
     }
 
     // 컬럼 패킹: 위 대학의 최하위가 끝난 지점 아래면 같은 컬럼을 재사용한다.
@@ -180,7 +208,8 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
 
             return (
               <div
-                key={`${b.university}-${b.campus}-${b.col}`}
+                // 한 대학이 여러 블록으로 쪼개질 수 있으므로 대표 Program 을 키에 포함한다
+                key={`${b.university}-${b.campus}-${b.items[0].program_id}`}
                 className="absolute"
                 style={{ left: 56 + b.col * COL_W, width: COL_W - 8, top: 0 }}
               >

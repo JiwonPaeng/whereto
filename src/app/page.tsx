@@ -1,180 +1,193 @@
-/**
- * 임시 토큰 확인 페이지. M1 에서 실제 랜딩/랭킹표로 교체된다.
- * §14 판단(정보 밀도, 표의 시각적 신뢰감, 카드 중립성)을 눈으로 검증하는 용도.
- *
- * 인증 상태를 표시하느라 force-dynamic 이다. M1 의 실제 랭킹 페이지는
- * §13.3 대로 ISR(revalidate 600)로 가야 한다 — 이 설정을 그대로 옮기지 말 것.
- */
-
+import Link from "next/link";
 import { AuthStatus } from "./AuthStatus";
+import { createPublicClient } from "@/lib/supabase/public";
 
+// 인증 상태와 실시간 집계를 보여주므로 동적이다.
+// M4 SEO 작업 때 정적 부분과 분리하는 것을 검토한다.
 export const dynamic = "force-dynamic";
 
-const SAMPLE = [
-  { rank: 1, delta: 0, univ: "가대학교", major: "컴퓨터공학부", elo: 1642, n: 312, badge: null },
-  { rank: 2, delta: +3, univ: "나대학교", major: "전기전자공학부", elo: 1618, n: 287, badge: null },
-  { rank: 3, delta: -1, univ: "다대학교", major: "기계공학과", elo: 1594, n: 245, badge: null },
-  { rank: 4, delta: 0, univ: "라대학교", major: "화학공학과", elo: 1571, n: 33, badge: "표본 부족" },
-  { rank: null, delta: null, univ: "마대학교", major: "신소재공학부", elo: 1508, n: 6, badge: "잠정" },
-];
+export default async function Home() {
+  const db = createPublicClient();
 
-function Delta({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-fg-subtle">—</span>;
-  if (value === 0) return <span className="text-rank-same">—</span>;
-  return value > 0 ? (
-    <span className="text-rank-up">▲{value}</span>
-  ) : (
-    <span className="text-rank-down">▼{Math.abs(value)}</span>
+  const [votes, programs, universities, reasons] = await Promise.all([
+    db.from("votes").select("id", { count: "exact", head: true }).eq("is_valid", true),
+    db.from("programs").select("id", { count: "exact", head: true }).eq("is_active", true),
+    db.from("universities").select("id", { count: "exact", head: true }).eq("is_active", true),
+    db
+      .from("public_reasons")
+      .select("vote_id, nickname, is_named, winner_id, reason, created_at")
+      .order("created_at", { ascending: false })
+      .limit(4),
+  ]);
+
+  // 이유에 붙일 학과 이름
+  const winnerIds = Array.from(new Set((reasons.data ?? []).map((r) => r.winner_id)));
+  const labels = new Map<number, string>();
+  if (winnerIds.length > 0) {
+    const { data } = await db
+      .from("mv_ranking_overall")
+      .select("program_id, university_short_name, university_name, display_name")
+      .in("program_id", winnerIds);
+    for (const p of data ?? []) {
+      labels.set(
+        p.program_id as number,
+        `${p.university_short_name ?? p.university_name} ${p.display_name}`,
+      );
+    }
+  }
+
+  return (
+    <main className="flex-1">
+      {/* 히어로 */}
+      <section className="border-b border-line bg-surface">
+        <div className="mx-auto max-w-app px-4 py-12 lg:py-20">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-2xs font-semibold uppercase tracking-wider text-accent">
+                수험생이 만드는 대학·학과 선호도 지수
+              </p>
+              {/* §1.2 서비스의 헌법. 어디서도 "어디가 더 좋은 학교인가"로 바꾸지 않는다. */}
+              <h1 className="mt-2 break-keep text-2xl font-bold leading-snug text-fg lg:text-4xl">
+                당신이 이 두 곳을 모두 갈 수 있다면,
+                <br />
+                어디를 선택하시겠습니까?
+              </h1>
+              <p className="mt-4 break-keep text-sm leading-relaxed text-fg-muted lg:text-base">
+                입결·취업률은 이미 숫자로 나와 있습니다. 하지만 수험생이 실제로 어디를 더 가고
+                싶어 하는지는 어디에도 수치화되어 있지 않습니다. 두 학과를 놓고 고르는 투표를
+                모아 그 선호를 하나의 숫자로 만듭니다.
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/vote"
+                  className="rounded-md bg-brand px-5 py-2.5 text-base font-semibold text-fg-on-brand transition-colors hover:bg-brand-hover"
+                >
+                  투표 시작하기
+                </Link>
+                <Link
+                  href="/ranking"
+                  className="rounded-md border border-line-strong px-5 py-2.5 text-base font-medium text-fg transition-colors hover:bg-surface-sunken"
+                >
+                  배치표 보기
+                </Link>
+              </div>
+              <p className="mt-2 text-2xs text-fg-subtle">
+                로그인 없이도 투표할 수 있습니다. 로그인하면 반영 비중이 커집니다.
+              </p>
+            </div>
+
+            <div className="shrink-0">
+              <AuthStatus />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 현황 */}
+      <section className="border-b border-line">
+        <div className="mx-auto grid max-w-app grid-cols-3 divide-x divide-line px-4">
+          <Stat label="누적 투표" value={votes.count ?? 0} />
+          <Stat label="학과" value={programs.count ?? 0} />
+          <Stat label="대학" value={universities.count ?? 0} />
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-app px-4 py-10 lg:py-14">
+        <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr]">
+          {/* 작동 방식 */}
+          <section>
+            <h2 className="text-lg font-bold text-fg">어떻게 만들어지나요</h2>
+            <ol className="mt-3 space-y-3">
+              <Step n={1} title="서버가 두 학과를 골라 보여줍니다">
+                비슷한 지수끼리, 그리고 노출이 적었던 학과를 섞어 제시합니다. 이용자가 비교할
+                대상을 임의로 정할 수는 없습니다.
+              </Step>
+              <Step n={2} title="선택이 지수에 반영됩니다">
+                ELO 방식으로 이긴 쪽이 오르고 진 쪽이 내려갑니다. 예상 밖의 결과일수록 크게
+                움직입니다.
+              </Step>
+              <Step n={3} title="표본이 적으면 대학 수준으로 추정합니다">
+                아직 표가 모이지 않은 학과는 소속 대학의 지수 쪽으로 당겨 표시하고, 투표가 쌓일수록
+                학과 자체의 값으로 옮겨갑니다.
+              </Step>
+            </ol>
+
+            <p className="mt-4 rounded-md bg-surface-sunken px-3 py-2 text-2xs leading-relaxed text-fg-muted">
+              누가 어느 쪽을 골랐는지는 공개되지 않습니다. 공개되는 것은 남기기로 선택한 &ldquo;선택
+              이유&rdquo;뿐이며, 닉네임 표시 여부도 직접 정할 수 있습니다.
+            </p>
+          </section>
+
+          {/* 최근 이유 */}
+          <section>
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-lg font-bold text-fg">최근 선택 이유</h2>
+              <Link href="/board/matchup" className="text-2xs text-accent hover:underline">
+                매치업 토론 →
+              </Link>
+            </div>
+
+            {(reasons.data ?? []).length === 0 ? (
+              <p className="mt-3 rounded-md border border-line bg-surface px-3 py-8 text-center text-xs text-fg-subtle">
+                아직 남겨진 이유가 없습니다.
+                <br />
+                <Link href="/vote" className="text-accent hover:underline">
+                  첫 이유를 남겨보세요.
+                </Link>
+              </p>
+            ) : (
+              <ul className="mt-3 divide-y divide-line rounded-md border border-line bg-surface">
+                {(reasons.data ?? []).map((r) => (
+                  <li key={r.vote_id} className="px-3 py-2.5">
+                    <Link
+                      href={`/program/${r.winner_id}`}
+                      className="mr-1.5 whitespace-nowrap rounded-sm bg-vote-selected-bg px-1.5 py-0.5 text-2xs font-semibold text-brand hover:underline"
+                    >
+                      {labels.get(r.winner_id as number) ?? "학과"}
+                    </Link>
+                    <span className="text-sm leading-relaxed text-fg">{r.reason}</span>
+                    <p className="mt-1 text-2xs text-fg-subtle">
+                      {r.is_named ? r.nickname : <span className="italic">익명</span>}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* §12.1 고지 */}
+        <p className="mt-10 border-t border-line pt-4 text-2xs leading-relaxed text-fg-subtle">
+          본 지표는 수험생들의 <strong>선호도 투표 결과</strong>이며, 대학의 교육 품질·학문적
+          수준·연구 역량에 대한 평가가 아닙니다. 입시 결과를 예측하거나 대체하지 않습니다.
+        </p>
+      </div>
+    </main>
   );
 }
 
-export default function Home() {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <main className="mx-auto w-full max-w-app px-4 py-10">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-3 border-b border-line-strong pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-brand">어디갈래</h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            디자인 토큰 확인용 임시 화면 · 기획서 §14
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <a href="/ranking" className="text-sm font-medium text-accent hover:underline">
-            배치표
-          </a>
-          <a
-            href="/vote"
-            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"
-          >
-            투표하러 가기
-          </a>
-          <AuthStatus />
-        </div>
-      </header>
+    <div className="py-5 text-center">
+      <div className="text-2xl font-bold tabular text-brand lg:text-3xl">
+        {value.toLocaleString("ko-KR")}
+      </div>
+      <div className="mt-0.5 text-2xs text-fg-subtle">{label}</div>
+    </div>
+  );
+}
 
-      {/* 투표 화면 — §14.4 좌우 카드는 색으로 구분하지 않는다 */}
-      <section className="mb-10">
-        <h2 className="mb-3 text-xl font-semibold">투표 카드</h2>
-        <div className="grid gap-3 lg:grid-cols-2">
-          {[
-            { u: "가대학교", m: "컴퓨터공학부", r: "서울" },
-            { u: "나대학교", m: "전기전자공학부", r: "수도권" },
-          ].map((p) => (
-            <button
-              key={p.u}
-              className="rounded-md border border-vote-card-line bg-vote-card p-6 text-left transition-colors hover:bg-vote-card-hover"
-            >
-              <div className="text-2xs text-fg-subtle">{p.r}</div>
-              <div className="mt-1 text-3xl font-bold text-fg">{p.u}</div>
-              <div className="mt-0.5 text-lg text-fg-muted">{p.m}</div>
-            </button>
-          ))}
-        </div>
-        <p className="mt-3 text-center text-base text-fg-muted">
-          당신이 이 두 곳을 모두 갈 수 있다면, 어디를 선택하시겠습니까?
-        </p>
-        <p className="mt-2 text-2xs text-fg-subtle">
-          ⚠️ 두 카드는 반드시 동일한 토큰을 쓴다. 파랑 vs 빨강 배색은 특정 학교
-          상징색을 연상시켜 선택에 영향을 준다 (§14.4).
-        </p>
-      </section>
-
-      {/* 랭킹표 — §14.3 표는 표처럼 보여야 한다 */}
-      <section className="mb-10">
-        <h2 className="mb-3 text-xl font-semibold">랭킹표</h2>
-        <div className="overflow-x-auto rounded-md border border-line-strong bg-surface">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-sunken text-2xs uppercase text-fg-subtle">
-              <tr>
-                <th className="px-3 py-2 text-right font-medium">순위</th>
-                <th className="px-2 py-2 text-center font-medium">변동</th>
-                <th className="px-3 py-2 text-left font-medium">대학</th>
-                <th className="px-3 py-2 text-left font-medium">학과</th>
-                <th className="px-3 py-2 text-right font-medium">선호도 지수</th>
-                <th className="px-3 py-2 text-right font-medium">표본</th>
-                <th className="px-3 py-2 text-left font-medium">신뢰도</th>
-              </tr>
-            </thead>
-            <tbody className="tabular">
-              {SAMPLE.map((row) => (
-                <tr key={row.univ} className="border-t border-line hover:bg-gray-25">
-                  <td className="px-3 py-1.5 text-right font-semibold">
-                    {row.rank ?? <span className="text-fg-subtle">—</span>}
-                  </td>
-                  <td className="px-2 py-1.5 text-center text-xs">
-                    <Delta value={row.delta} />
-                  </td>
-                  <td className="px-3 py-1.5 font-medium">{row.univ}</td>
-                  <td className="px-3 py-1.5 text-fg-muted">{row.major}</td>
-                  <td
-                    className={`px-3 py-1.5 text-right font-semibold ${
-                      row.badge === "잠정" ? "text-badge-provisional" : "text-fg"
-                    }`}
-                  >
-                    {row.elo}
-                  </td>
-                  <td className="px-3 py-1.5 text-right text-xs text-fg-muted">{row.n}</td>
-                  <td className="px-3 py-1.5">
-                    {row.badge === "표본 부족" && (
-                      <span className="inline-flex items-center gap-1 text-2xs text-warn-600">
-                        <span className="size-1.5 rounded-full bg-badge-low-sample" />
-                        표본 부족
-                      </span>
-                    )}
-                    {row.badge === "잠정" && (
-                      <span className="text-2xs text-fg-subtle">잠정 · 순위 미부여</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-2 text-2xs text-fg-subtle">
-          계열이 다른 학과 사이의 점수 차이는 참고용입니다. 정확한 비교는 같은 계열
-          안에서 이루어질 때 가장 신뢰할 수 있습니다. (§4.2.1)
-        </p>
-      </section>
-
-      {/* 색 램프 */}
-      <section className="mb-10">
-        <h2 className="mb-3 text-xl font-semibold">색 램프</h2>
-        {[
-          { name: "navy", steps: [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] },
-          { name: "gray", steps: [25, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] },
-          { name: "accent", steps: [300, 400, 500, 600, 700] },
-        ].map((ramp) => (
-          <div key={ramp.name} className="mb-2">
-            <div className="mb-1 text-2xs text-fg-subtle">{ramp.name}</div>
-            <div className="flex gap-1">
-              {ramp.steps.map((s) => (
-                <div
-                  key={s}
-                  className="h-8 flex-1 rounded-xs border border-line"
-                  style={{ backgroundColor: `var(--color-${ramp.name}-${s})` }}
-                  title={`${ramp.name}-${s}`}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* 타이포 스케일 */}
-      <section>
-        <h2 className="mb-3 text-xl font-semibold">타이포 스케일</h2>
-        <div className="space-y-1 rounded-md border border-line bg-surface p-4">
-          <p className="text-4xl font-bold">1642 — 선호도 지수 (36px)</p>
-          <p className="text-3xl font-bold">가대학교 (28px)</p>
-          <p className="text-2xl font-semibold">섹션 제목 (22px)</p>
-          <p className="text-xl font-semibold">소제목 (18px)</p>
-          <p className="text-lg">리드 문장 (16px)</p>
-          <p className="text-base">기본 본문입니다. 정보 밀도 우선 (14px)</p>
-          <p className="text-sm">표 본문 (13px)</p>
-          <p className="text-xs text-fg-muted">보조 컬럼 (12px)</p>
-          <p className="text-2xs text-fg-subtle">배지 · 캡션 (11px)</p>
-        </div>
-      </section>
-    </main>
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-2xs font-bold text-fg-on-brand">
+        {n}
+      </span>
+      <div>
+        <div className="text-sm font-semibold text-fg">{title}</div>
+        <p className="mt-0.5 break-keep text-xs leading-relaxed text-fg-muted">{children}</p>
+      </div>
+    </li>
   );
 }

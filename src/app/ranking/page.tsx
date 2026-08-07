@@ -10,15 +10,31 @@ export default async function RankingPage() {
 
   // 예체능 제외 (D-011). 매칭이 분리되어 지수 척도가 인문·자연과 이어지지 않는다.
   // 데이터는 그대로 있으며 조회에서만 뺀다.
-  const { data, error } = await supabase
-    .from("mv_ranking_overall")
-    .select(
-      "program_id, university_name, university_short_name, campus, region_group, faculty_group, display_name, elo, vote_count, win_rate, confidence, rank_overall, rank_faculty",
-    )
-    .neq("faculty_group", "예체능")
-    .order("elo", { ascending: false });
+  //
+  // ⚠️ Supabase 의 db-max-rows 가 1000 이라 limit·Range 로 넘길 수 없다.
+  // 페이지네이션하지 않으면 1,763개 중 1,000개만 그려지고 나머지가 조용히 사라진다.
+  const PAGE = 1000;
+  const rows: RankRow[] = [];
+  let error: { message: string } | null = null;
 
-  const rows = (data ?? []) as RankRow[];
+  for (let from = 0; ; from += PAGE) {
+    const res = await supabase
+      .from("mv_ranking_overall")
+      .select(
+        "program_id, university_name, university_short_name, campus, region_group, faculty_group, display_name, elo, vote_count, win_rate, confidence, rank_overall, rank_faculty",
+      )
+      .neq("faculty_group", "예체능")
+      .order("elo", { ascending: false })
+      .order("program_id", { ascending: true }) // 페이지 경계에서 순서가 흔들리지 않게
+      .range(from, from + PAGE - 1);
+
+    if (res.error) {
+      error = res.error;
+      break;
+    }
+    rows.push(...((res.data ?? []) as RankRow[]));
+    if (!res.data || res.data.length < PAGE) break;
+  }
   const provisional = rows.filter((r) => r.confidence === "잠정").length;
 
   return (

@@ -22,16 +22,15 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "id, nickname, status, track, age_years, vote_weight, trust_coeff, reputation_raw, reputation_mult, created_at",
-    )
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!profile) redirect("/onboarding");
-
-  const [{ data: stats }, { data: rawVotes }] = await Promise.all([
+  // 세 쿼리를 한 번에 던진다. 순차로 하면 Supabase 왕복이 그대로 쌓인다.
+  const [{ data: profile }, { data: stats }, { data: rawVotes }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "id, nickname, status, track, age_years, vote_weight, trust_coeff, reputation_raw, reputation_mult, created_at",
+      )
+      .eq("id", user.id)
+      .maybeSingle(),
     supabase.rpc("my_vote_stats"),
     // RLS 로 본인 행만 조회된다 (§8.2).
     supabase
@@ -42,6 +41,8 @@ export default async function ProfilePage() {
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
+
+  if (!profile) redirect("/onboarding");
 
   const ids = Array.from(
     new Set((rawVotes ?? []).flatMap((v) => [v.program_a_id, v.program_b_id])),

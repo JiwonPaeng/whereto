@@ -14,6 +14,19 @@ import { NextResponse, type NextRequest } from "next/server";
 export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  /*
+   * 로그인하지 않은 방문자에게는 세션 갱신이 필요 없다.
+   * getUser() 는 Supabase 로 네트워크 왕복을 하므로, 인증 쿠키가 아예 없으면
+   * 그 왕복을 건너뛴다. 이 검사가 없으면 정적 페이지(§13.3 ISR)까지
+   * 매 요청 왕복 비용을 물게 된다 — 실제로 prerender 된 /ranking 이 0.7초 걸렸다.
+   */
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+  if (!hasAuthCookie) {
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

@@ -12,15 +12,17 @@ export default async function VotePage() {
   } = await supabase.auth.getUser();
 
   // 로그인했지만 온보딩 전이면 지수에 반영되지 않는다 (profiles 행이 있어야 가중치가 잡힌다).
-  let hasProfile = false;
-  if (user) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", user.id)
-      .maybeSingle();
-    hasProfile = !!data;
-  }
+  //
+  // 프로필 확인과 첫 매치업 발급을 **병렬로** 던진다. 순차로 하면 Supabase 왕복이
+  // 하나 더 쌓인다. 온보딩 전 유저에게는 매치업 발급이 낭비지만 드문 경우다.
+  const [profileRes, firstRes] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("id").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.rpc("matchup_next"),
+  ]);
+
+  const hasProfile = !!profileRes.data;
 
   if (user && !hasProfile) {
     return (
@@ -39,9 +41,9 @@ export default async function VotePage() {
     );
   }
 
-  // 첫 매치업을 서버에서 발급한다. 클라이언트 마운트 후 왕복을 없애고,
+  // 첫 매치업은 위에서 병렬로 발급했다. 클라이언트 마운트 후 왕복을 없애고,
   // 마운트 effect 안에서 상태를 세팅하는 패턴도 피한다.
-  const { data: first } = await supabase.rpc("matchup_next");
+  const first = firstRes.data;
   const initialMatchup = first?.token ? (first as Matchup) : null;
 
   return (

@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 const STATUS = ["고1", "고2", "고3", "N수", "대학생", "기타"] as const;
-const TRACK = ["인문사회", "자연공학", "의약", "사범", "예체능"] as const;
+// §3 계열 7분류 (D-006). majors.faculty_group / profiles.track 과 어휘가 같아야 한다.
+const TRACK = ["인문", "사회", "자연", "공학", "의약", "사범", "예체능"] as const;
 
 export type OnboardingState = { error: string | null };
 

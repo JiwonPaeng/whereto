@@ -16,7 +16,13 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 @import "tailwindcss";
 
-@theme {
+/* `static` 이 필요한 이유 (Tailwind v4.3.3 에서 확인):
+ * 옵션 없이 @theme 만 쓰면 Tailwind 가 "사용되지 않은" 변수를 출력에서 제거한다.
+ * 유틸리티(bg-navy-500)로 쓰면 그때 생성되므로 문제가 없지만,
+ * 커스텀 CSS 나 인라인 스타일에서 var(--color-navy-500) 로 직접 참조하면
+ * 값이 조용히 비어버린다 — 에러도 안 난다.
+ * 팔레트는 항상 참조 가능한 자원이어야 하므로 전량 출력을 강제한다. */
+@theme static {
   /* ── 타이포 ────────────────────────────────────────────────
    * §14.3 본문 13~14px. Tailwind 기본(16px)을 그대로 두면 밀도가 무너진다.
    * text-base 가 14px 이라는 점을 전제로 화면을 짠다. */

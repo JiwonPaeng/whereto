@@ -12,16 +12,25 @@ import {
 // §13.3 Program 상세는 ISR(300).
 export const revalidate = 300;
 
+/** 빌드 시점에 프리렌더할 Program 수. 나머지는 첫 요청에 생성되어 ISR 로 캐시된다. */
+const PRERENDER_LIMIT = 300;
+
 /**
- * 전 Program 을 빌드 시점에 프리렌더한다.
- * 이게 없으면 동적 세그먼트가 프리렌더 대상에서 빠져 매 요청이 서버 렌더가 된다 —
- * §13.3 의 ISR 의도와 어긋나고, M4 의 "Program 상세를 SEO 랜딩 페이지로"에도 불리하다.
- * 현재 202개라 빌드 비용이 작다. 대학이 크게 늘면 상위 N개만 프리렌더하는 방식으로 바꾼다.
+ * 상위 N개만 빌드 시점에 프리렌더한다.
+ *
+ * 이 함수가 아예 없으면 동적 세그먼트가 프리렌더 대상에서 빠져 §13.3 의 ISR 의도가 흐려진다.
+ * 반대로 전부(2,000+) 프리렌더하면 페이지당 5회 가까운 쿼리가 빌드마다 만 번 단위로 돈다.
+ * `dynamicParams` 기본값(true) 덕에 목록 밖 Program 도 첫 요청에 생성되어 이후 캐시되므로,
+ * 표본이 쌓인 상위 Program 만 미리 만들어 두는 것으로 충분하다.
  */
 export async function generateStaticParams() {
   const supabase = createPublicClient();
-  const { data } = await supabase.from("programs").select("id").eq("is_active", true);
-  return (data ?? []).map((p) => ({ id: String(p.id) }));
+  const { data } = await supabase
+    .from("mv_ranking_overall")
+    .select("program_id, vote_count")
+    .order("vote_count", { ascending: false })
+    .limit(PRERENDER_LIMIT);
+  return (data ?? []).map((p) => ({ id: String(p.program_id) }));
 }
 
 export default async function ProgramPage({ params }: PageProps<"/program/[id]">) {

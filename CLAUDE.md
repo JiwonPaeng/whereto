@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **단, [docs/DECISIONS.md](docs/DECISIONS.md) 는 기획서보다 우선한다.** 기획서는 확정 문서(v1.1)라 직접 수정하지 않고, 구현 중 전제가 바뀐 결정만 결정 로그에 남긴다. **기획서와 코드가 어긋나 보이면 먼저 결정 로그를 확인할 것** — 대개 의도된 차이다.
 
-현재 유효한 결정: 영문명 `whereto`(D-001) · `votes` ELO 변동량 2컬럼(D-002) · `mv_ranking_faculty` 통합(D-003) · **§5.3 연령 가중치 적용 보류(D-004)**.
+현재 유효한 결정: 영문명 `whereto`(D-001) · `votes` ELO 변동량 2컬럼(D-002) · `mv_ranking_faculty` 통합(D-003) · **§5.3 연령 가중치 적용 보류(D-004)** · 마스터 데이터 단계적 확장(D-005) · Program 정체성 = 실제 학과명 + 계열 7분류(D-006) · **`majors` 제거(D-007)**.
 
 현재 로드맵 M0(§15) 진행 중.
 
@@ -39,9 +39,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 아키텍처 (여러 절에 흩어져 있는 큰 그림)
 
-**Program이 랭킹의 최소 단위** — (대학, 학과) 조합. `universities` × `majors` → `programs`.
+**Program이 랭킹의 최소 단위** — 실제로 존재하는 (대학, 학과) 하나. `programs (university_id, display_name, faculty_group)`, `UNIQUE (university_id, display_name)`.
 
-**`majors`(표준 학과) ↔ `programs.display_name`(실제 명칭) 분리를 반드시 유지한다.** 같은 학과가 대학마다 '컴퓨터학과 / 컴퓨터공학부 / 소프트웨어학부'로 갈린다. **매칭·필터는 `majors` 기준, 화면 표시는 `display_name` 기준.** 이 매핑 품질이 매칭 품질을 직접 결정한다. (§9.1)
+⚠️ **`majors`(표준 학과) 테이블은 없다. D-007로 제거했다 — 되살리지 말 것.** 기획서 §9.1과 CLAUDE.md 구버전이 "majors ↔ display_name 분리를 반드시 유지"라고 했으나, §5.4 매칭은 `major_id`를 쓰지 않고 계열과 ELO만 쓴다. 학과 단위 순위도 §4.3에 없다. 700개 Program을 손으로 표준 학과에 매핑하는 비용에 상응하는 이득이 없었다.
+
+**분류는 계열(7개)까지만 한다.** `인문 / 사회 / 자연 / 공학 / 의약 / 사범 / 예체능` (D-006). 학과 단위는 실제 명칭(`display_name`)으로만 다룬다 — 우리가 정규화하지 않는다.
+
+**`faculty_group`은 `programs`에 있다.** 대학별 실제 소속을 반영한다 — 통계학이 어떤 대학에선 자연과학대학, 다른 대학에선 정경대학인 것을 그대로 담는다.
+
+**한 대학에 같은 계열 Program이 여럿인 게 정상이다.** 컴퓨터공학과와 인공지능학과가 공존한다. Program의 정체성은 실제 학과명이다.
+
+알려진 대가: §4.2 "학과 검색"이 `display_name` 텍스트 검색으로만 가능해 '소프트웨어학부'가 '컴퓨터공학' 묶음에 안 걸린다. 필요해지면 `programs.major_id`를 **nullable**로 추가해 점진 매핑한다 (D-007).
 
 **투표 플로우 (§13.3)** — 이 경로 전체가 서버 권위 구조다:
 ```

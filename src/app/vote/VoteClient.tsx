@@ -52,6 +52,9 @@ export function VoteClient({
   const [reasonSaved, setReasonSaved] = useState(false);
   const [reasonBusy, setReasonBusy] = useState(false);
 
+  // D-013 매치업 품질 신호. 투표 결과가 아니라 "이 비교가 답할 만했는가"를 묻는다.
+  const [feedback, setFeedback] = useState<"good" | "bad" | null>(null);
+
   const loadMatchup = useCallback(async () => {
     setPhase("loading");
     setError(null);
@@ -59,6 +62,7 @@ export function VoteClient({
     setReason("");
     setReasonSaved(false);
     setReasonPublic(true);
+    setFeedback(null);
 
     const { data, error } = await supabase.rpc("matchup_next");
     if (error) {
@@ -116,6 +120,20 @@ export function VoteClient({
     await supabase.rpc("matchup_skip", { p_token: matchup.token });
     void loadMatchup();
   }, [matchup, phase, supabase, loadMatchup]);
+
+  const sendFeedback = useCallback(
+    async (kind: "good" | "bad") => {
+      if (!matchup) return;
+      const next = feedback === kind ? null : kind;
+      setFeedback(next);
+      if (next === null) return; // 취소는 로컬에서만 — 기록은 남긴다
+      await supabase.rpc("matchup_feedback_submit", {
+        p_token: matchup.token,
+        p_kind: next,
+      });
+    },
+    [matchup, feedback, supabase],
+  );
 
   const saveReason = useCallback(async () => {
     if (!result || !reason.trim()) return;
@@ -182,6 +200,35 @@ export function VoteClient({
           체험 모드입니다. <Link href="/login" className="font-semibold text-accent hover:underline">로그인</Link>하면
           투표가 선호도 지수에 반영됩니다.
         </p>
+      )}
+
+      {/* D-013 매치업 품질 평가. 우상단에 작게 — 투표 자체를 방해하지 않아야 한다. */}
+      {isLoggedIn && matchup && (
+        <div className="mb-1.5 flex items-center justify-end gap-1">
+          <span className="mr-1 text-2xs text-fg-subtle">이 비교, 어땠나요?</span>
+          {(
+            [
+              ["good", "👍", "답할 만한 비교였다"],
+              ["bad", "👎", "비교하기 어려웠다"],
+            ] as const
+          ).map(([kind, icon, label]) => (
+            <button
+              key={kind}
+              onClick={() => sendFeedback(kind)}
+              title={label}
+              aria-label={label}
+              aria-pressed={feedback === kind}
+              className={[
+                "rounded-sm border px-1.5 py-0.5 text-xs transition-colors",
+                feedback === kind
+                  ? "border-accent bg-vote-selected-bg"
+                  : "border-line bg-surface opacity-60 hover:opacity-100",
+              ].join(" ")}
+            >
+              {icon}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* 카드 — 모바일에서도 좌우 분할 (D-010).

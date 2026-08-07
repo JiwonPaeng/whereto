@@ -31,6 +31,8 @@ function SiteFooter() {
     <footer className="mt-auto border-t border-line px-4 py-5 text-2xs text-fg-subtle">
       <div className="mx-auto flex max-w-app flex-wrap items-center gap-x-4 gap-y-2">
         <span className="font-semibold text-fg-muted">어디갈래</span>
+        <a href="/ranking" className="hover:underline">배치표</a>
+        <a href="/board/matchup" className="hover:underline">매치업 토론</a>
         <a href="/terms" className="hover:underline">이용약관</a>
         <a href="/privacy" className="hover:underline">개인정보처리방침</a>
         <span className="ml-auto">

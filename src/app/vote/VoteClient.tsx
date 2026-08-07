@@ -322,12 +322,24 @@ export function VoteClient({
                 <span className="ml-2 text-2xs text-warn-600">지수 미반영</span>
               )}
             </p>
-            <button
-              onClick={loadMatchup}
-              className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"
-            >
-              다음 매치업
-            </button>
+            <div className="flex items-center gap-3">
+              {/* §10.3 이 매치업의 토론 스레드로. 공개된 이유들이 모여 있다. */}
+              <Link
+                href={`/matchup/p${Math.min(result.program_a_id, result.program_b_id)}-${Math.max(
+                  result.program_a_id,
+                  result.program_b_id,
+                )}`}
+                className="text-xs text-accent hover:underline"
+              >
+                이 매치업 토론 보기
+              </Link>
+              <button
+                onClick={loadMatchup}
+                className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"
+              >
+                다음 매치업
+              </button>
+            </div>
           </div>
 
           {/* §4.1.1 작성을 강제하지 않는다. 강제하면 표본이 급감한다. */}

@@ -68,7 +68,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **읽기 부하 방어가 설계 전제** — 수능·정시 시즌 트래픽 급증을 가정한다. 랭킹은 materialized view + ISR(`revalidate: 600`), Program 상세 ISR(300), 게시판 목록 30초. **투표 화면만 `dynamic = 'force-dynamic'`.** Supabase Realtime은 쓰지 않는다. (§13.3)
 
-**배치는 `pg_cron`** — 일 단위(rating 스냅샷, 순위 변동, `age_years`/`vote_weight`/`bias_score`/`reputation_mult` 재계산), 분 단위(MV refresh).
+**배치는 `pg_cron`** — 등록된 잡 4개. **pg_cron은 UTC로 돈다** (18:00 UTC = 03:00 KST).
+
+| jobname | 스케줄 | 함수 |
+|---|---|---|
+| `daily-rating-snapshot` | `0 18 * * *` | `batch_daily_snapshot()` — `rating_history` 적재 (§4.3 추이 그래프, §4.2 순위 변동의 원천) |
+| `daily-profile-weights` | `10 18 * * *` | `batch_recompute_profile_weights()` — `age_years` 갱신, 트리거가 `vote_weight` 동반 계산 |
+| `refresh-ranking-mv` | `*/10 * * * *` | `refresh_ranking_mv()` |
+| `refresh-hot-posts-mv` | `*/5 * * * *` | `refresh_hot_posts_mv()` |
+
+`bias_score`(§8.3)·`reputation_mult`(§7.1) 재계산은 M2/M3이라 아직 없다.
 
 **어뷰징 방지는 부가 기능이 아니라 핵심 기능이다.** 지표가 조작되면 서비스 존재 이유가 사라진다. 방어선을 애플리케이션 레이어에만 두지 않고 RLS로 DB 레벨에 둔다 — `votes`는 INSERT만, 본인 행 SELECT만. 타 유저 `votes` 행은 어떤 경로로도 조회 불가. (§8, §13.2)
 

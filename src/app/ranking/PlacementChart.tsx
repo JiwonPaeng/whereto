@@ -162,11 +162,10 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                   style={{ top: blockTop, height: blockHeight, left: 0, right: 0 }}
                 />
 
-                <div
-                  className="absolute rounded-sm bg-brand px-2 py-0.5 text-2xs font-bold text-fg-on-brand"
-                  style={{ top: blockTop + 3, left: 4 }}
-                >
-                  {b.university}
+                <div className="absolute left-0 right-0 text-center" style={{ top: blockTop + 3 }}>
+                  <span className="inline-block rounded-sm bg-brand px-2 py-0.5 text-2xs font-bold text-fg-on-brand">
+                    {b.university}
+                  </span>
                 </div>
 
                 {b.items.map((it) => (
@@ -174,7 +173,7 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                     key={it.program_id}
                     onClick={() => setSelected(it)}
                     className={[
-                      "absolute left-1 right-1 truncate rounded-xs px-1 text-left text-2xs transition-colors hover:bg-surface",
+                      "absolute left-1 right-1 truncate rounded-xs px-1 text-center text-2xs transition-colors hover:bg-surface",
                       it.confidence === "잠정" ? "text-badge-provisional" : "text-fg",
                       selected?.program_id === it.program_id
                         ? "bg-vote-selected-bg font-semibold ring-1 ring-accent"

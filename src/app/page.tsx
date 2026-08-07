@@ -39,6 +39,9 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <a href="/ranking" className="text-sm font-medium text-accent hover:underline">
+            배치표
+          </a>
           <a
             href="/vote"
             className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"

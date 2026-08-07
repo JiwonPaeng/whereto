@@ -1,7 +1,14 @@
 /**
  * 임시 토큰 확인 페이지. M1 에서 실제 랜딩/랭킹표로 교체된다.
  * §14 판단(정보 밀도, 표의 시각적 신뢰감, 카드 중립성)을 눈으로 검증하는 용도.
+ *
+ * 인증 상태를 표시하느라 force-dynamic 이다. M1 의 실제 랭킹 페이지는
+ * §13.3 대로 ISR(revalidate 600)로 가야 한다 — 이 설정을 그대로 옮기지 말 것.
  */
+
+import { AuthStatus } from "./AuthStatus";
+
+export const dynamic = "force-dynamic";
 
 const SAMPLE = [
   { rank: 1, delta: 0, univ: "가대학교", major: "컴퓨터공학부", elo: 1642, n: 312, badge: null },
@@ -24,11 +31,14 @@ function Delta({ value }: { value: number | null }) {
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-app px-4 py-10">
-      <header className="mb-8 border-b border-line-strong pb-4">
-        <h1 className="text-2xl font-bold text-brand">어디갈래</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          디자인 토큰 확인용 임시 화면 · 기획서 §14
-        </p>
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-3 border-b border-line-strong pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-brand">어디갈래</h1>
+          <p className="mt-1 text-sm text-fg-muted">
+            디자인 토큰 확인용 임시 화면 · 기획서 §14
+          </p>
+        </div>
+        <AuthStatus />
       </header>
 
       {/* 투표 화면 — §14.4 좌우 카드는 색으로 구분하지 않는다 */}

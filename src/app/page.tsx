@@ -38,7 +38,15 @@ export default function Home() {
             디자인 토큰 확인용 임시 화면 · 기획서 §14
           </p>
         </div>
-        <AuthStatus />
+        <div className="flex items-center gap-4">
+          <a
+            href="/vote"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"
+          >
+            투표하러 가기
+          </a>
+          <AuthStatus />
+        </div>
       </header>
 
       {/* 투표 화면 — §14.4 좌우 카드는 색으로 구분하지 않는다 */}

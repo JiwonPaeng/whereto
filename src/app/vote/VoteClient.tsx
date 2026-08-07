@@ -356,13 +356,21 @@ export function VoteClient({
                 className="mt-1 w-full resize-none rounded-md border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
               />
               <div className="mt-1.5 flex items-center justify-between gap-2">
-                <label className="flex items-center gap-1.5 text-2xs text-fg-muted">
+                {/* D-014 — 이유는 어느 쪽이든 공개된다. 체크박스는 '닉네임을 붙일지'만 정한다.
+                    이 문구가 곧 이용자의 동의 내용이므로 애매하게 쓰면 안 된다. */}
+                <label className="flex items-start gap-1.5 text-2xs text-fg-muted">
                   <input
                     type="checkbox"
                     checked={reasonPublic}
                     onChange={(e) => setReasonPublic(e.target.checked)}
+                    className="mt-0.5"
                   />
-                  공개 — 닉네임과 함께 표시됩니다
+                  <span>
+                    닉네임 공개
+                    <span className="block text-fg-subtle">
+                      해제하면 익명으로 표시됩니다. 이유 자체는 어느 쪽이든 공개됩니다.
+                    </span>
+                  </span>
                 </label>
                 <button
                   onClick={saveReason}
@@ -377,7 +385,7 @@ export function VoteClient({
 
           {reasonSaved && (
             <p className="mt-3 border-t border-line pt-3 text-2xs text-success-500">
-              이유를 저장했습니다{reasonPublic ? " · 공개됩니다" : " · 비공개입니다"}.
+              이유를 저장했습니다{reasonPublic ? " · 닉네임과 함께 표시됩니다" : " · 익명으로 표시됩니다"}.
             </p>
           )}
         </div>

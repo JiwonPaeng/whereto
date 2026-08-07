@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
-import { ThreadComments, type Comment } from "./ThreadComments";
+import { ThreadBody, type Comment, type Reason } from "./ThreadBody";
 
 // §13.3 게시판은 30초 캐시. 댓글이 자주 바뀌므로 랭킹보다 짧게 잡는다.
 export const revalidate = 30;
@@ -48,10 +48,11 @@ export default async function MatchupThreadPage({ params }: PageProps<"/matchup/
         .eq("program_id", lo)
         .eq("opponent_id", hi)
         .maybeSingle(),
-      // §10.3 공개된 선택 이유가 스레드로 자동 유입된다 — 별도 복사 없이 votes 를 그대로 읽는다.
+      // §10.3 선택 이유가 스레드로 자동 유입된다 — 별도 복사 없이 votes 를 그대로 읽는다.
+      // D-014 익명 이유도 포함되며, 그 행은 nickname 이 null 로 내려온다.
       db
         .from("public_reasons")
-        .select("vote_id, nickname, winner_id, reason, reason_upvotes, created_at")
+        .select("vote_id, nickname, is_named, winner_id, reason, reason_upvotes, created_at")
         .or(
           `and(winner_id.eq.${lo},loser_id.eq.${hi}),and(winner_id.eq.${hi},loser_id.eq.${lo})`,
         )
@@ -60,7 +61,7 @@ export default async function MatchupThreadPage({ params }: PageProps<"/matchup/
         .limit(100),
       db
         .from("public_thread_comments")
-        .select("id, parent_id, nickname, content, upvotes, created_at")
+        .select("id, parent_id, reason_vote_id, nickname, content, upvotes, created_at")
         .eq("matchup_key", key)
         .order("created_at", { ascending: true }),
     ]);
@@ -119,51 +120,17 @@ export default async function MatchupThreadPage({ params }: PageProps<"/matchup/
       </div>
       <p className="mt-1.5 text-center text-2xs text-fg-subtle">이 쌍의 누적 {total}표</p>
 
-      {/* §10.3 공개된 선택 이유 자동 유입 */}
-      <section className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold">
-          선택 이유{" "}
-          <span className="text-2xs font-normal text-fg-subtle">
-            투표하며 공개한 논거가 모입니다
-          </span>
-        </h2>
-        {(reasons ?? []).length === 0 ? (
-          <p className="rounded-md border border-line bg-surface px-3 py-6 text-center text-xs text-fg-subtle">
-            아직 공개된 이유가 없습니다.
-            <br />
-            <Link href="/vote" className="text-accent hover:underline">
-              투표하며 이유를 남기면
-            </Link>{" "}
-            여기에 모입니다.
-          </p>
-        ) : (
-          <ul className="divide-y divide-line rounded-md border border-line bg-surface">
-            {(reasons ?? []).map((r) => {
-              const picked = r.winner_id === a.program_id ? a : b;
-              return (
-                <li key={r.vote_id} className="px-3 py-2">
-                  <span className="mr-1.5 rounded-sm bg-vote-selected-bg px-1.5 py-0.5 text-2xs font-semibold text-brand">
-                    {picked.university_short_name ?? picked.university_name}
-                  </span>
-                  <span className="text-sm leading-relaxed text-fg">{r.reason}</span>
-                  <p className="mt-1 text-2xs text-fg-subtle">
-                    {r.nickname} · 추천 {r.reason_upvotes}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-6">
-        <ThreadComments
-          programLo={lo}
-          programHi={hi}
-          comments={(comments ?? []) as Comment[]}
-          isLoggedIn={!!user}
-        />
-      </section>
+      <ThreadBody
+        programLo={lo}
+        programHi={hi}
+        sides={[a, b].map((p) => ({
+          program_id: p.program_id,
+          short: p.university_short_name ?? p.university_name,
+        }))}
+        reasons={(reasons ?? []) as Reason[]}
+        comments={(comments ?? []) as Comment[]}
+        isLoggedIn={!!user}
+      />
     </main>
   );
 }

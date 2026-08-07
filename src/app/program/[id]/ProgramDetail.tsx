@@ -25,7 +25,9 @@ export type ProgramInfo = {
 export type HistoryPoint = { snapshot_date: string; elo: number; rank_overall: number | null };
 export type ReasonItem = {
   vote_id: number;
-  nickname: string;
+  /** D-014 익명 이유는 null 로 내려온다 */
+  nickname: string | null;
+  is_named: boolean;
   reason: string;
   reason_upvotes: number;
   created_at: string;
@@ -108,7 +110,10 @@ export function ProgramDetail({
                     <li key={r.vote_id} className="py-2">
                       <p className="text-sm leading-relaxed text-fg">{r.reason}</p>
                       <p className="mt-1 text-2xs text-fg-subtle">
-                        {r.nickname} · 추천 {r.reason_upvotes}
+                        <span className={r.is_named ? "" : "italic"}>
+                          {r.is_named ? r.nickname : "익명"}
+                        </span>{" "}
+                        · 추천 {r.reason_upvotes}
                       </p>
                     </li>
                   ))}

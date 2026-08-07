@@ -51,7 +51,7 @@ export default async function ProgramPage({ params }: PageProps<"/program/[id]">
     // §4.1.1 공개된 이유만. 이 학과를 '선택한' 이유이므로 winner_id 기준이다.
     supabase
       .from("public_reasons")
-      .select("vote_id, nickname, reason, reason_upvotes, created_at")
+      .select("vote_id, nickname, is_named, reason, reason_upvotes, created_at")
       .eq("winner_id", programId)
       .order("reason_upvotes", { ascending: false })
       .order("created_at", { ascending: false })

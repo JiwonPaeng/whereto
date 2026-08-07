@@ -235,12 +235,20 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                 )}
               </div>
             </div>
-            <button
-              onClick={() => setSelected(null)}
-              className="text-2xs text-fg-subtle hover:underline"
-            >
-              닫기
-            </button>
+            <div className="flex shrink-0 items-center gap-3">
+              <a
+                href={`/program/${selected.program_id}`}
+                className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium hover:bg-surface-sunken"
+              >
+                상세 보기
+              </a>
+              <button
+                onClick={() => setSelected(null)}
+                className="text-2xs text-fg-subtle hover:underline"
+              >
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}

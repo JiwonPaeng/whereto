@@ -79,6 +79,25 @@
 
 전환 후에는 카카오 생년월일과 직접 입력값을 대조해, 불일치 계정의 `c_trust`를 §8.3의 기존 감쇠 메커니즘으로 낮춘다. §8.3 원칙대로 **이미 반영된 과거 투표는 소급 조정하지 않는다.**
 
+### 부록 · 비즈 앱 게이트는 이메일에도 걸린다 (2026-08-07 확인)
+
+구현 중 확인된 사실. 카카오 `account_email` 동의항목도 **비즈 앱 전용**이다. 생년월일과 같은 게이트다.
+
+Supabase Kakao provider 는 기본으로 `account_email profile_image profile_nickname` 을 요청하는데, 앱에 설정되지 않은 동의항목이 섞이면 카카오가 **KOE205** 로 거절한다.
+
+**클라이언트 코드로는 못 고친다.** `signInWithOAuth({ options: { scopes } })` 는 기본 scope 를 **대체하지 않고 덧붙인다** — 실측 결과:
+
+```
+scopes 미지정            → account_email profile_image profile_nickname
+scopes=profile_nickname  → account_email profile_image profile_nickname profile_nickname
+```
+
+해결은 Supabase 대시보드의 Kakao provider 설정에서 **Allow users without an email** 을 켜는 것뿐이다. 그러면 `account_email` 이 요청 scope 에서 빠진다.
+
+따라서 이 서비스의 `auth.users.email` 은 당분간 비어 있다. 이메일을 쓰는 기능(알림 등 §10.5 `P2`)을 설계할 때 이 전제를 확인할 것.
+
+비즈 앱 전환은 생년월일 검증과 이메일 수집을 **동시에** 푼다 — 전환의 가치가 D-004 작성 시점 판단보다 크다.
+
 ### 기각한 대안
 
 - **로직 비공개** — §8.6과 정면 충돌. 그 공개 페이지는 §12.1 대학 측 항의에 대한 방어 카드("자의적 조작이 없음을 보이는 근거")이기도 하다. 은닉은 리버스 엔지니어링으로 무력화된다

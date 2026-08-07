@@ -92,11 +92,26 @@ scopes 미지정            → account_email profile_image profile_nickname
 scopes=profile_nickname  → account_email profile_image profile_nickname profile_nickname
 ```
 
-해결은 Supabase 대시보드의 Kakao provider 설정에서 **Allow users without an email** 을 켜는 것뿐이다. 그러면 `account_email` 이 요청 scope 에서 빠진다.
+**Supabase 대시보드의 `Allow users without an email` 로도 해결되지 않는다.** 그 설정은 이메일 없는 유저를 *받아들이는* 것이지 요청 scope 를 바꾸지 않는다 — 켠 뒤에도 scope 는 그대로였다(3회 실측). Supabase Kakao provider 는 `account_email` 을 고정으로 요청하며 이를 빼는 수단이 없다.
 
-따라서 이 서비스의 `auth.users.email` 은 당분간 비어 있다. 이메일을 쓰는 기능(알림 등 §10.5 `P2`)을 설계할 때 이 전제를 확인할 것.
+### 결정: 비즈 앱 전환으로 해결한다 (2026-08-07)
 
-비즈 앱 전환은 생년월일 검증과 이메일 수집을 **동시에** 푼다 — 전환의 가치가 D-004 작성 시점 판단보다 크다.
+전환 하나로 두 가지가 동시에 풀리기 때문이다.
+
+| | 해결 방법 |
+|---|---|
+| 로그인 (KOE205) | `account_email` 동의항목 활성화 → **코드 변경 없음** |
+| 연령 가중치 (D-004) | `signInWithOAuth({ options: { scopes: 'birthday birthyear' } })` **한 줄** |
+
+두 번째가 가능한 이유가 위에서 확인한 "scopes 는 추가된다"는 성질이다. 제거는 못 해도 **추가는 되므로**, 비즈 앱에서 동의항목만 열리면 생년월일을 받아올 수 있다.
+
+전환 전까지 로그인이 동작하지 않으므로 **M0 완료가 여기에 묶여 있다.**
+
+### 기각한 대안 · OIDC 직접 연동
+
+`signInWithIdToken` 으로 카카오 OIDC 를 직접 물면 비즈 앱 없이도 로그인이 되고 scope 통제권도 얻는다(`profile_image` 강제 수집을 피할 수 있어 §12.2 에 부합). 그러나 OAuth `state` 검증(CSRF 방어)을 직접 구현해야 해 보안에 직결되는 코드가 늘고, 비즈 앱 전환은 D-004 때문에 어차피 해야 한다. 전환이 막히면 이 안으로 되돌아온다.
+
+`auth.users.email` 은 전환 전까지 비어 있다. 이메일을 쓰는 기능(알림 등 §10.5 `P2`)을 설계할 때 확인할 것.
 
 ### 기각한 대안
 

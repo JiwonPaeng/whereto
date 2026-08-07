@@ -2,8 +2,13 @@ import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { PlacementChart, type RankRow } from "./PlacementChart";
 
-// §13.3 랭킹은 materialized view + ISR. 실시간성보다 읽기 부하 방어가 중요하다.
-export const revalidate = 600;
+/*
+ * §13.3 은 ISR 600 을 규정하지만 **부트스트랩 구간에서는 60 으로 낮춘다.**
+ * 트래픽이 사실상 없는 지금은 읽기 부하보다 피드백 속도가 중요하다.
+ * MV refresh 도 1분 주기로 낮춰 두었다 — 둘을 합쳐 최대 20분이던 반영 지연을 2분으로 줄인다.
+ * 유입이 생기면 둘 다 되돌린다.
+ */
+export const revalidate = 60;
 
 export default async function RankingPage() {
   const supabase = createPublicClient();

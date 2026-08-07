@@ -23,10 +23,26 @@ export type RankRow = {
 };
 
 const ROW_H = 16; // 라벨 한 줄 높이 — §14.3 고밀도
-const PX_PER_POINT = 3; // 지수 1점당 세로 픽셀
 const HEADER_H = 30;
 const COL_W = 140; // 묶음 배경 안쪽 여백을 감안해 조금 넓혔다
-const GRID_STEP = 50; // 눈금 간격 (지수)
+
+/**
+ * 세로 스케일은 **데이터 범위에 맞춰 정한다.**
+ *
+ * 고정 배율(예전 3px/점)을 쓰면 지수 폭이 좁은 초기에 실제 위치가 충돌 밀어내기에 묻힌다 —
+ * 범위 115점이 345px 인데 컬럼당 라벨 43개가 688px 를 차지하면, 보이는 건 위치가 아니라
+ * 그냥 정렬된 목록이다. 범위가 목표 높이를 채우도록 배율을 역산한다.
+ */
+const TARGET_SPAN_PX = 2200;
+const MIN_PX_PER_POINT = 1.5;
+const MAX_PX_PER_POINT = 60;
+
+/** 눈금이 8~12개 나오도록 사람이 읽기 좋은 간격을 고른다. */
+function niceStep(range: number): number {
+  const raw = Math.max(range / 10, 0.5);
+  const candidates = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500];
+  return candidates.find((c) => c >= raw) ?? 1000;
+}
 
 type Placed = RankRow & { y: number };
 type Block = { university: string; campus: string; items: Placed[]; top: number; bottom: number; col: number };
@@ -41,7 +57,7 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
     [rows],
   );
 
-  const { blocks, cols, height, maxElo, minElo } = useMemo(() => {
+  const { blocks, cols, height, maxElo, minElo, pxPerPoint, gridStep } = useMemo(() => {
     const filtered = rows.filter(
       (r) =>
         (faculty === "전체" || r.faculty_group === faculty) &&
@@ -49,11 +65,20 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
     );
 
     if (filtered.length === 0) {
-      return { blocks: [] as Block[], cols: 0, height: 200, maxElo: 0, minElo: 0 };
+      return {
+        blocks: [] as Block[], cols: 0, height: 200,
+        maxElo: 0, minElo: 0, pxPerPoint: 1, gridStep: 50,
+      };
     }
 
     const maxElo = Math.max(...filtered.map((r) => r.elo_display));
     const minElo = Math.min(...filtered.map((r) => r.elo_display));
+    const range = Math.max(maxElo - minElo, 1);
+    const pxPerPoint = Math.min(
+      MAX_PX_PER_POINT,
+      Math.max(MIN_PX_PER_POINT, TARGET_SPAN_PX / range),
+    );
+    const gridStep = niceStep(range);
 
     // 대학별로 묶고, 지수 내림차순으로 세로 배치한다.
     // 같은 지수가 겹치면 아래로 밀어낸다 — 실제 배치표와 같은 방식.
@@ -71,7 +96,7 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
       const items: Placed[] = [];
       let cursor = -Infinity;
       for (const r of sorted) {
-        const ideal = (maxElo - r.elo_display) * PX_PER_POINT;
+        const ideal = (maxElo - r.elo_display) * pxPerPoint;
         const y = Math.max(ideal, cursor + ROW_H);
         items.push({ ...r, y });
         cursor = y;
@@ -106,12 +131,14 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
       height: Math.max(...blocks.map((b) => b.bottom)) + 20,
       maxElo,
       minElo,
+      pxPerPoint,
+      gridStep,
     };
   }, [rows, faculty, region]);
 
-  const gridTop = Math.ceil(maxElo / GRID_STEP) * GRID_STEP;
+  const gridTop = Math.ceil(maxElo / gridStep) * gridStep;
   const gridLines: number[] = [];
-  for (let v = gridTop; v >= minElo - GRID_STEP; v -= GRID_STEP) gridLines.push(v);
+  for (let v = gridTop; v >= minElo - gridStep; v -= gridStep) gridLines.push(v);
 
   return (
     <div>
@@ -134,7 +161,7 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
         >
           {/* 지수 눈금 */}
           {gridLines.map((v) => {
-            const y = (maxElo - v) * PX_PER_POINT + HEADER_H;
+            const y = (maxElo - v) * pxPerPoint + HEADER_H;
             if (y < 0 || y > height + HEADER_H) return null;
             return (
               <div key={v} className="pointer-events-none absolute left-0 right-0" style={{ top: y }}>

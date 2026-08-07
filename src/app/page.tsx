@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AuthStatus } from "./AuthStatus";
 import { createPublicClient } from "@/lib/supabase/public";
 
 // 인증 상태와 실시간 집계를 보여주므로 동적이다.
@@ -9,10 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const db = createPublicClient();
 
-  const [votes, programs, universities, reasons] = await Promise.all([
-    db.from("votes").select("id", { count: "exact", head: true }).eq("is_valid", true),
-    db.from("programs").select("id", { count: "exact", head: true }).eq("is_active", true),
-    db.from("universities").select("id", { count: "exact", head: true }).eq("is_active", true),
+  // votes 는 §8.2 로 anon 에게 행 조회가 막혀 있다. 집계는 public_stats 뷰로 읽는다 —
+  // 직접 count 하면 0 이 나온다.
+  const [stats, reasons] = await Promise.all([
+    db.from("public_stats").select("votes, reasons, voters, programs, universities").maybeSingle(),
     db
       .from("public_reasons")
       .select("vote_id, nickname, is_named, winner_id, reason, created_at")
@@ -77,9 +76,6 @@ export default async function Home() {
               </p>
             </div>
 
-            <div className="shrink-0">
-              <AuthStatus />
-            </div>
           </div>
         </div>
       </section>
@@ -87,9 +83,9 @@ export default async function Home() {
       {/* 현황 */}
       <section className="border-b border-line">
         <div className="mx-auto grid max-w-app grid-cols-3 divide-x divide-line px-4">
-          <Stat label="누적 투표" value={votes.count ?? 0} />
-          <Stat label="학과" value={programs.count ?? 0} />
-          <Stat label="대학" value={universities.count ?? 0} />
+          <Stat label="누적 투표" value={stats.data?.votes ?? 0} />
+          <Stat label="학과" value={stats.data?.programs ?? 0} />
+          <Stat label="대학" value={stats.data?.universities ?? 0} />
         </div>
       </section>
 

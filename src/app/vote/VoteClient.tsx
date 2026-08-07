@@ -58,6 +58,11 @@ export function VoteClient({
   // D-013 매치업 품질 신호. 투표 결과가 아니라 "이 비교가 답할 만했는가"를 묻는다.
   const [feedback, setFeedback] = useState<"good" | "bad" | null>(null);
 
+  // 투표 직후 이 쌍의 스레드를 살짝 보여준다 — 링크만 두면 눌러볼 이유가 없다.
+  const [peek, setPeek] = useState<
+    { vote_id: number; reason: string; is_named: boolean; nickname: string | null; winner_id: number }[]
+  >([]);
+
   const loadMatchup = useCallback(async () => {
     setPhase("loading");
     setError(null);
@@ -66,6 +71,7 @@ export function VoteClient({
     setReasonSaved(false);
     setReasonPublic(true);
     setFeedback(null);
+    setPeek([]);
 
     const { data, error } = await supabase.rpc("matchup_next", { p_anon_id: anonId });
     if (error) {
@@ -122,8 +128,20 @@ export function VoteClient({
         setPhase("voting");
         return;
       }
-      setResult(data as VoteResult);
+      const res = data as VoteResult;
+      setResult(res);
       setPhase("result");
+
+      // 이 쌍에 이미 남겨진 이유를 몇 개 끌어와 보여준다.
+      const lo = Math.min(res.program_a_id, res.program_b_id);
+      const hi = Math.max(res.program_a_id, res.program_b_id);
+      const { data: peeked } = await supabase
+        .from("public_reasons")
+        .select("vote_id, reason, is_named, nickname, winner_id")
+        .or(`and(winner_id.eq.${lo},loser_id.eq.${hi}),and(winner_id.eq.${hi},loser_id.eq.${lo})`)
+        .order("reason_upvotes", { ascending: false })
+        .limit(3);
+      setPeek(peeked ?? []);
     },
     [matchup, phase, supabase, loadMatchup, anonId],
   );
@@ -340,25 +358,60 @@ export function VoteClient({
                 <span className="ml-2 text-2xs text-warn-600">지수 미반영</span>
               )}
             </p>
-            <div className="flex items-center gap-3">
-              {/* §10.3 이 매치업의 토론 스레드로. 공개된 이유들이 모여 있다. */}
-              <Link
-                href={`/matchup/p${Math.min(result.program_a_id, result.program_b_id)}-${Math.max(
-                  result.program_a_id,
-                  result.program_b_id,
-                )}`}
-                className="text-xs text-accent hover:underline"
-              >
-                이 매치업 토론 보기
-              </Link>
-              <button
-                onClick={loadMatchup}
-                className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"
-              >
-                다음 매치업
-              </button>
-            </div>
+            <button
+              onClick={loadMatchup}
+              className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-fg-on-brand hover:bg-brand-hover"
+            >
+              다음 매치업
+            </button>
           </div>
+
+          {/* §10.3 스레드 미리보기. 링크만 두면 눌러볼 이유가 없어 실제 내용을 보여준다. */}
+          {(() => {
+            const key = `p${Math.min(result.program_a_id, result.program_b_id)}-${Math.max(
+              result.program_a_id,
+              result.program_b_id,
+            )}`;
+            return (
+              <div className="mt-3 border-t border-line pt-3">
+                {peek.length > 0 ? (
+                  <>
+                    <p className="mb-1.5 text-2xs text-fg-subtle">
+                      다른 사람들은 이렇게 골랐습니다
+                    </p>
+                    <ul className="space-y-1.5">
+                      {peek.map((r) => (
+                        <li key={r.vote_id} className="break-keep text-sm leading-snug text-fg">
+                          <span className="mr-1.5 whitespace-nowrap rounded-sm bg-vote-selected-bg px-1.5 py-0.5 text-2xs font-semibold text-brand">
+                            {r.winner_id === result.program_a_id
+                              ? (matchup?.a.short_name ?? matchup?.a.university)
+                              : (matchup?.b.short_name ?? matchup?.b.university)}
+                          </span>
+                          {r.reason}
+                          <span className="ml-1.5 text-2xs text-fg-subtle">
+                            {r.is_named ? r.nickname : "익명"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      href={`/matchup/${key}`}
+                      className="mt-2 inline-block text-xs font-semibold text-accent hover:underline"
+                    >
+                      토론 이어보기 →
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-2xs text-fg-subtle">
+                    이 비교에 남겨진 이유가 아직 없습니다.{" "}
+                    <Link href={`/matchup/${key}`} className="text-accent hover:underline">
+                      첫 의견을 남겨보세요 →
+                    </Link>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* §4.1.1 작성을 강제하지 않는다. 강제하면 표본이 급감한다. */}
           {isLoggedIn && !reasonSaved && (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HeaderAuth } from "./HeaderAuth";
 import "./globals.css";
 
 // 폰트는 globals.css 에서 Pretendard 를 불러온다 (§13.1).
@@ -27,25 +28,24 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 /**
  * 전역 네비게이션.
  *
- * ⚠️ 로그인 상태를 읽지 않는다. layout 에서 cookies() 를 건드리면 모든 페이지가
- * 동적 렌더링으로 바뀌어 §13.3 의 ISR(랭킹 600 / 상세 300)이 통째로 무력화된다.
- * 대신 "내 정보"를 상태와 무관한 링크로 두고, /profile 이 비로그인 시 /login 으로 보낸다.
+ * ⚠️ 서버에서 로그인 상태를 읽지 않는다. layout 에서 cookies() 를 건드리면 모든 페이지가
+ * 동적 렌더링으로 바뀌어 §13.3 의 ISR 이 통째로 무력화된다.
+ * 로그인 표시는 클라이언트 컴포넌트(HeaderAuth)가 담당한다.
  */
 function SiteHeader() {
   const nav = [
     { href: "/vote", label: "투표" },
     { href: "/ranking", label: "배치표" },
     { href: "/board/matchup", label: "매치업 토론" },
-    { href: "/profile", label: "내 정보" },
   ];
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-app items-center gap-1 px-3 py-2">
-        <Link href="/" className="mr-2 text-base font-bold text-brand">
+        <Link href="/" className="mr-2 whitespace-nowrap text-base font-bold text-brand">
           어디갈래
         </Link>
-        <nav className="flex items-center gap-0.5 overflow-x-auto">
+        <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
           {nav.map((n) => (
             <Link
               key={n.href}
@@ -56,6 +56,7 @@ function SiteHeader() {
             </Link>
           ))}
         </nav>
+        <HeaderAuth />
       </div>
     </header>
   );

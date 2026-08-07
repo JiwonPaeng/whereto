@@ -61,7 +61,7 @@ export default async function MatchupThreadPage({ params }: PageProps<"/matchup/
         .limit(100),
       db
         .from("public_thread_comments")
-        .select("id, parent_id, reason_vote_id, nickname, content, upvotes, created_at")
+        .select("id, parent_id, reason_vote_id, nickname, is_named, content, upvotes, created_at")
         .eq("matchup_key", key)
         .order("created_at", { ascending: true }),
     ]);

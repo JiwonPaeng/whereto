@@ -18,11 +18,39 @@ export type Comment = {
   id: number;
   parent_id: number | null;
   reason_vote_id: number | null;
+  /** 익명 댓글은 null 로 내려온다 */
   nickname: string | null;
+  is_named: boolean;
   content: string;
   upvotes: number;
   created_at: string;
 };
+
+/** 댓글 작성자 표기. 익명이면 닉네임이 내려오지 않는다. */
+function Author({ c }: { c: Comment }) {
+  if (!c.is_named) return <span className="italic">익명</span>;
+  return <span>{c.nickname ?? "탈퇴한 사용자"}</span>;
+}
+
+/** 익명/닉네임 선택 토글 */
+function AnonToggle({
+  anonymous,
+  onChange,
+}: {
+  anonymous: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-1.5 text-2xs text-fg-muted">
+      <input
+        type="checkbox"
+        checked={anonymous}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      익명으로 작성
+    </label>
+  );
+}
 
 /**
  * 같은 대학끼리 붙는 매치업(예: 서울대 스마트시스템과학과 vs 서울대 의류학과)에서는
@@ -53,6 +81,8 @@ export function ThreadBody({
   const [error, setError] = useState<string | null>(null);
 
   const [threadDraft, setThreadDraft] = useState("");
+  // 닉네임이 남는 모든 곳에 익명 선택권을 준다. 기본값은 익명이다.
+  const [anonymous, setAnonymous] = useState(true);
 
   const repliesOf = (voteId: number) => comments.filter((c) => c.reason_vote_id === voteId);
   const threadComments = comments.filter((c) => c.reason_vote_id === null);
@@ -67,6 +97,7 @@ export function ThreadBody({
       p_content: content,
       p_parent_id: null,
       p_reason_vote_id: reasonVoteId,
+      p_anonymous: anonymous,
     });
     setBusy(false);
     if (error) {
@@ -141,7 +172,7 @@ export function ThreadBody({
                             {rep.content}
                           </p>
                           <p className="mt-0.5 text-2xs text-fg-subtle">
-                            {rep.nickname ?? "탈퇴한 사용자"} ·{" "}
+                            <Author c={rep} /> ·{" "}
                             {new Date(rep.created_at).toLocaleDateString("ko-KR")}
                           </p>
                         </li>
@@ -158,7 +189,8 @@ export function ThreadBody({
                         placeholder="이 이유에 답글"
                         className="w-full resize-none rounded-md border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
                       />
-                      <div className="mt-1 flex justify-end gap-2">
+                      <div className="mt-1 flex items-center justify-end gap-3">
+                        <AnonToggle anonymous={anonymous} onChange={setAnonymous} />
                         <button
                           onClick={() => setOpenReason(null)}
                           className="text-2xs text-fg-subtle hover:underline"
@@ -199,7 +231,7 @@ export function ThreadBody({
                   {c.content}
                 </p>
                 <p className="mt-1 text-2xs text-fg-subtle">
-                  {c.nickname ?? "탈퇴한 사용자"} ·{" "}
+                  <Author c={c} /> ·{" "}
                   {new Date(c.created_at).toLocaleDateString("ko-KR")}
                 </p>
               </li>
@@ -218,7 +250,8 @@ export function ThreadBody({
               placeholder="이 비교 자체에 대한 의견을 남겨보세요"
               className="w-full resize-none rounded-md border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
             />
-            <div className="mt-1.5 flex justify-end">
+            <div className="mt-1.5 flex items-center justify-end gap-3">
+              <AnonToggle anonymous={anonymous} onChange={setAnonymous} />
               <button
                 onClick={() => send(threadDraft, null)}
                 disabled={busy || !threadDraft.trim()}

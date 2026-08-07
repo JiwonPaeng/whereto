@@ -32,9 +32,17 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# claude code (로컬 전용 설정만 제외, 공유 설정은 커밋)
+.claude/settings.local.json
+
+# supabase cli 로컬 상태
+/supabase/.temp
+/supabase/.branches
 
 # typescript
 *.tsbuildinfo

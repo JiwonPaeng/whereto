@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { completeOnboarding, type OnboardingState } from "./actions";
 
 const STATUS = ["고1", "고2", "고3", "N수", "대학생", "기타"];
-const TRACK = ["인문", "사회", "자연", "공학", "의약", "사범", "예체능"];
+const TRACK = ["인문", "자연", "예체능"];
 
 const initial: OnboardingState = { error: null };
 

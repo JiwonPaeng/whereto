@@ -46,10 +46,21 @@ function LoginInner() {
         {pending ? "이동 중…" : "카카오로 시작하기"}
       </button>
 
-      <p className="mt-4 text-center text-2xs text-fg-subtle">
+      {/* 약관 제4조 — 동의하고 로그인한 때 이용계약이 성립한다. 그 고지가 여기 있어야 한다. */}
+      <p className="mt-4 text-center text-2xs leading-relaxed text-fg-subtle">
+        로그인하면{" "}
+        <a href="/terms" className="text-accent hover:underline">
+          이용약관
+        </a>
+        과{" "}
+        <a href="/privacy" className="text-accent hover:underline">
+          개인정보처리방침
+        </a>
+        에 동의하는 것으로 봅니다.
+        <br />
         만 14세 미만은 가입할 수 없습니다.
         <br />
-        로그인하지 않아도 랭킹과 게시판은 볼 수 있습니다.
+        로그인하지 않아도 순위와 게시판은 볼 수 있습니다.
       </p>
     </main>
   );

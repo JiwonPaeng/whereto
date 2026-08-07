@@ -14,7 +14,29 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <SiteFooter />
+      </body>
     </html>
+  );
+}
+
+/**
+ * §12.2 이용약관·개인정보처리방침은 상시 접근 가능해야 한다 (카카오 로그인 심사 요건이기도 하다).
+ * §1.5 "만든 이유" · §8.6 "산출 방식" 공개 페이지도 여기에 붙는다 — 둘 다 M3.
+ */
+function SiteFooter() {
+  return (
+    <footer className="mt-auto border-t border-line px-4 py-5 text-2xs text-fg-subtle">
+      <div className="mx-auto flex max-w-app flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="font-semibold text-fg-muted">어디갈래</span>
+        <a href="/terms" className="hover:underline">이용약관</a>
+        <a href="/privacy" className="hover:underline">개인정보처리방침</a>
+        <span className="ml-auto">
+          선호도 투표 결과이며 대학의 교육 품질에 대한 평가가 아닙니다.
+        </span>
+      </div>
+    </footer>
   );
 }

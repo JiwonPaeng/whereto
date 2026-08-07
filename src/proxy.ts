@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/** 비로그인 투표의 세션 식별자 쿠키 (D-016) */
+export const ANON_COOKIE = "wt_anon";
+
 /**
  * 세션 갱신.
  *
@@ -23,7 +26,21 @@ export default async function proxy(request: NextRequest) {
   const hasAuthCookie = request.cookies
     .getAll()
     .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+
   if (!hasAuthCookie) {
+    /*
+     * D-016 비로그인 투표도 지수에 반영된다. profile_id 가 없으므로 중복과 남용을
+     * 막을 기준이 필요해 세션 식별자를 심는다.
+     * 쿠키는 지우면 그만이라 권위 있는 방어가 아니다 — 문턱을 높이는 장치다.
+     */
+    if (!request.cookies.get(ANON_COOKIE)) {
+      supabaseResponse.cookies.set(ANON_COOKIE, crypto.randomUUID(), {
+        httpOnly: false, // 서버 컴포넌트와 클라이언트 양쪽에서 읽는다
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
     return supabaseResponse;
   }
 

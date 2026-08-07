@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { VoteClient, type Matchup } from "./VoteClient";
 
@@ -15,11 +16,14 @@ export default async function VotePage() {
   //
   // 프로필 확인과 첫 매치업 발급을 **병렬로** 던진다. 순차로 하면 Supabase 왕복이
   // 하나 더 쌓인다. 온보딩 전 유저에게는 매치업 발급이 낭비지만 드문 경우다.
+  // D-016 비로그인 세션 식별자. proxy 가 심는다.
+  const anonId = user ? null : ((await cookies()).get("wt_anon")?.value ?? null);
+
   const [profileRes, firstRes] = await Promise.all([
     user
       ? supabase.from("profiles").select("id").eq("id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.rpc("matchup_next"),
+    supabase.rpc("matchup_next", { p_anon_id: anonId }),
   ]);
 
   const hasProfile = !!profileRes.data;
@@ -48,7 +52,11 @@ export default async function VotePage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <VoteClient isLoggedIn={hasProfile} initialMatchup={initialMatchup} />
+      <VoteClient
+        isLoggedIn={hasProfile}
+        initialMatchup={initialMatchup}
+        anonId={anonId}
+      />
     </main>
   );
 }

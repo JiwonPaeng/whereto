@@ -12,6 +12,9 @@ export type ProgramInfo = {
   faculty_group: string;
   display_name: string;
   elo: number;
+  /** D-016 대학 ELO 로 shrink 한 표시값 */
+  elo_display: number;
+  university_elo: number;
   vote_count: number;
   win_count: number;
   win_rate: number | null;
@@ -179,8 +182,13 @@ function Metrics({ program: p }: { program: ProgramInfo }) {
               p.confidence === "잠정" ? "text-badge-provisional" : "text-fg"
             }`}
           >
-            {p.elo}
+            {p.elo_display}
           </div>
+          {p.confidence === "잠정" && (
+            <div className="mt-0.5 text-2xs text-fg-subtle">
+              표본이 적어 소속 대학 수준({p.university_elo})으로 추정한 값입니다
+            </div>
+          )}
         </div>
         {p.confidence && (
           <span className="rounded-sm bg-surface-sunken px-2 py-1 text-2xs text-warn-600">

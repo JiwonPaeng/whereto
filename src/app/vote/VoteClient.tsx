@@ -33,10 +33,13 @@ type Phase = "loading" | "voting" | "submitting" | "result" | "exhausted";
 export function VoteClient({
   isLoggedIn,
   initialMatchup,
+  anonId,
 }: {
   isLoggedIn: boolean;
   /** 첫 매치업은 서버에서 받아 넘긴다 — 마운트 시 클라이언트 왕복을 없앤다. */
   initialMatchup: Matchup | null;
+  /** D-016 비로그인 세션 식별자. 로그인 상태면 null. */
+  anonId: string | null;
 }) {
   const supabase = useRef(createClient()).current;
 
@@ -64,7 +67,7 @@ export function VoteClient({
     setReasonPublic(true);
     setFeedback(null);
 
-    const { data, error } = await supabase.rpc("matchup_next");
+    const { data, error } = await supabase.rpc("matchup_next", { p_anon_id: anonId });
     if (error) {
       setError(error.message);
       setPhase("voting");
@@ -82,7 +85,7 @@ export function VoteClient({
     setMatchup(data as Matchup);
     shownAt.current = Date.now();
     setPhase("voting");
-  }, [supabase]);
+  }, [supabase, anonId]);
 
   // 서버에서 받은 첫 매치업의 노출 시점 기록. ref 변경이라 상태 갱신이 아니다.
   useEffect(() => {
@@ -101,6 +104,7 @@ export function VoteClient({
         p_response_ms: shownAt.current
           ? Math.min(Date.now() - shownAt.current, 2_147_483_647)
           : null,
+        p_anon_id: anonId,
       });
 
       if (error) {
@@ -121,7 +125,7 @@ export function VoteClient({
       setResult(data as VoteResult);
       setPhase("result");
     },
-    [matchup, phase, supabase, loadMatchup],
+    [matchup, phase, supabase, loadMatchup, anonId],
   );
 
   const skip = useCallback(async () => {
@@ -205,10 +209,14 @@ export function VoteClient({
         </p>
       )}
 
+      {/* D-016 비로그인 투표도 반영된다. 다만 가중치가 낮고 일일 한도가 있다. */}
       {!isLoggedIn && (
         <p className="mb-3 rounded-md border border-line bg-surface-sunken px-3 py-2 text-2xs text-fg-muted">
-          체험 모드입니다. <Link href="/login" className="font-semibold text-accent hover:underline">로그인</Link>하면
-          투표가 선호도 지수에 반영됩니다.
+          로그인하지 않아도 투표가 반영됩니다.{" "}
+          <Link href="/login" className="font-semibold text-accent hover:underline">
+            로그인
+          </Link>
+          하면 반영 비중이 커지고 이유를 남길 수 있습니다.
         </p>
       )}
 

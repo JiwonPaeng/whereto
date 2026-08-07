@@ -10,7 +10,11 @@ export type RankRow = {
   region_group: string;
   faculty_group: string;
   display_name: string;
+  /** 저장된 Program ELO */
   elo: number;
+  /** D-016 대학 ELO 로 shrink 한 표시값. 화면 위치와 순위는 이 값을 쓴다. */
+  elo_display: number;
+  university_elo: number;
   vote_count: number;
   win_rate: number | null;
   confidence: string | null;
@@ -48,8 +52,8 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
       return { blocks: [] as Block[], cols: 0, height: 200, maxElo: 0, minElo: 0 };
     }
 
-    const maxElo = Math.max(...filtered.map((r) => r.elo));
-    const minElo = Math.min(...filtered.map((r) => r.elo));
+    const maxElo = Math.max(...filtered.map((r) => r.elo_display));
+    const minElo = Math.min(...filtered.map((r) => r.elo_display));
 
     // 대학별로 묶고, 지수 내림차순으로 세로 배치한다.
     // 같은 지수가 겹치면 아래로 밀어낸다 — 실제 배치표와 같은 방식.
@@ -63,11 +67,11 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
     const raw: Omit<Block, "col">[] = [];
     for (const [key, list] of byUniv) {
       const [university, campus] = key.split("|");
-      const sorted = [...list].sort((a, b) => b.elo - a.elo);
+      const sorted = [...list].sort((a, b) => b.elo_display - a.elo_display);
       const items: Placed[] = [];
       let cursor = -Infinity;
       for (const r of sorted) {
-        const ideal = (maxElo - r.elo) * PX_PER_POINT;
+        const ideal = (maxElo - r.elo_display) * PX_PER_POINT;
         const y = Math.max(ideal, cursor + ROW_H);
         items.push({ ...r, y });
         cursor = y;
@@ -180,7 +184,7 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                         : "",
                     ].join(" ")}
                     style={{ top: it.y + HEADER_H }}
-                    title={`${it.display_name} · ${it.elo} · 표본 ${it.vote_count}`}
+                    title={`${it.display_name} · ${it.elo_display} · 표본 ${it.vote_count}`}
                   >
                     {it.confidence === "표본 부족" && (
                       <span className="mr-0.5 inline-block size-1 rounded-full bg-badge-low-sample align-middle" />
@@ -211,7 +215,12 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
               </div>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-muted tabular">
                 <span>
-                  선호도 지수 <strong className="text-fg">{selected.elo}</strong>
+                  선호도 지수 <strong className="text-fg">{selected.elo_display}</strong>
+                  {selected.confidence === "잠정" && (
+                    <span className="ml-1 text-fg-subtle">
+                      (표본 부족 — 소속 대학 수준으로 추정)
+                    </span>
+                  )}
                 </span>
                 <span>
                   전체 순위{" "}

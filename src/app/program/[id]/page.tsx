@@ -43,7 +43,7 @@ export default async function ProgramPage({ params }: PageProps<"/program/[id]">
   const { data: program } = await supabase
     .from("mv_ranking_overall")
     .select(
-      "program_id, university_name, university_short_name, campus, region_group, faculty_group, display_name, elo, vote_count, win_count, win_rate, confidence, rank_overall, rank_faculty, rank_region, rank_delta",
+      "program_id, university_name, university_short_name, campus, region_group, faculty_group, display_name, elo, elo_display, university_elo, vote_count, win_count, win_rate, confidence, rank_overall, rank_faculty, rank_region, rank_delta",
     )
     .eq("program_id", programId)
     .maybeSingle();

@@ -21,10 +21,10 @@ export default async function RankingPage() {
     const res = await supabase
       .from("mv_ranking_overall")
       .select(
-        "program_id, university_name, university_short_name, campus, region_group, faculty_group, display_name, elo, vote_count, win_rate, confidence, rank_overall, rank_faculty",
+        "program_id, university_name, university_short_name, campus, region_group, faculty_group, display_name, elo, elo_display, university_elo, vote_count, win_rate, confidence, rank_overall, rank_faculty",
       )
       .neq("faculty_group", "예체능")
-      .order("elo", { ascending: false })
+      .order("elo_display", { ascending: false })
       .order("program_id", { ascending: true }) // 페이지 경계에서 순서가 흔들리지 않게
       .range(from, from + PAGE - 1);
 
@@ -62,9 +62,9 @@ export default async function RankingPage() {
 
       {rows.length > 0 && provisional === rows.length && (
         <p className="mb-3 rounded-md border border-warn-400 bg-surface px-3 py-2 text-sm text-warn-600">
-          아직 모든 학과가 <strong>잠정</strong> 상태입니다. 표본이 쌓이기 전이라 전부 같은
-          지수(1500)에서 출발해 있으며, 순위가 부여되지 않습니다. 투표가 모이면 세로로
-          흩어집니다.
+          아직 모든 학과가 <strong>잠정</strong> 상태라 순위를 부여하지 않습니다. 표본이 적은
+          학과는 <strong>소속 대학 수준으로 추정한 값</strong>을 표시하며, 투표가 쌓일수록 학과
+          자체의 값으로 옮겨갑니다.
         </p>
       )}
 

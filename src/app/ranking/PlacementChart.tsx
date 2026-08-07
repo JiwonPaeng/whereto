@@ -21,7 +21,7 @@ export type RankRow = {
 const ROW_H = 16; // 라벨 한 줄 높이 — §14.3 고밀도
 const PX_PER_POINT = 3; // 지수 1점당 세로 픽셀
 const HEADER_H = 30;
-const COL_W = 132;
+const COL_W = 140; // 묶음 배경 안쪽 여백을 감안해 조금 넓혔다
 const GRID_STEP = 50; // 눈금 간격 (지수)
 
 type Placed = RankRow & { y: number };
@@ -142,41 +142,56 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
             );
           })}
 
-          {/* 대학 블록 */}
-          {blocks.map((b) => (
-            <div
-              key={`${b.university}-${b.campus}-${b.col}`}
-              className="absolute"
-              style={{ left: 56 + b.col * COL_W, width: COL_W - 8, top: 0 }}
-            >
-              {/* 대학 헤더는 그 대학의 최상위 학과 바로 위에 붙는다 */}
-              <div
-                className="absolute rounded-sm bg-brand px-2 py-1 text-2xs font-bold text-fg-on-brand"
-                style={{ top: b.top + HEADER_H - 24 }}
-              >
-                {b.university}
-              </div>
+          {/* 대학 블록. 학과들이 하나의 반투명 묶음 위에 올라간다. */}
+          {blocks.map((b) => {
+            const blockTop = b.top + HEADER_H - 24; // 헤더가 들어갈 자리
+            const blockHeight = b.bottom - b.top + 28;
 
-              {b.items.map((it) => (
-                <button
-                  key={it.program_id}
-                  onClick={() => setSelected(it)}
-                  className={[
-                    "absolute w-full truncate rounded-xs px-1 text-left text-2xs transition-colors hover:bg-vote-selected-bg",
-                    it.confidence === "잠정" ? "text-badge-provisional" : "text-fg",
-                    selected?.program_id === it.program_id ? "bg-vote-selected-bg font-semibold" : "",
-                  ].join(" ")}
-                  style={{ top: it.y + HEADER_H }}
-                  title={`${it.display_name} · ${it.elo} · 표본 ${it.vote_count}`}
+            return (
+              <div
+                key={`${b.university}-${b.campus}-${b.col}`}
+                className="absolute"
+                style={{ left: 56 + b.col * COL_W, width: COL_W - 8, top: 0 }}
+              >
+                {/* 묶음 배경.
+                    반투명이어야 한다 — 불투명하면 지수 눈금선이 가려져
+                    "같은 높이 = 같은 지수"라는 배치표의 전제가 눈으로 확인되지 않는다.
+                    DOM 순서상 먼저 와서 라벨보다 아래에 깔린다. */}
+                <div
+                  className="absolute rounded-md border border-navy-200 bg-navy-500/[0.07]"
+                  style={{ top: blockTop, height: blockHeight, left: 0, right: 0 }}
+                />
+
+                <div
+                  className="absolute rounded-sm bg-brand px-2 py-0.5 text-2xs font-bold text-fg-on-brand"
+                  style={{ top: blockTop + 3, left: 4 }}
                 >
-                  {it.confidence === "표본 부족" && (
-                    <span className="mr-0.5 inline-block size-1 rounded-full bg-badge-low-sample align-middle" />
-                  )}
-                  {it.display_name}
-                </button>
-              ))}
-            </div>
-          ))}
+                  {b.university}
+                </div>
+
+                {b.items.map((it) => (
+                  <button
+                    key={it.program_id}
+                    onClick={() => setSelected(it)}
+                    className={[
+                      "absolute left-1 right-1 truncate rounded-xs px-1 text-left text-2xs transition-colors hover:bg-surface",
+                      it.confidence === "잠정" ? "text-badge-provisional" : "text-fg",
+                      selected?.program_id === it.program_id
+                        ? "bg-vote-selected-bg font-semibold ring-1 ring-accent"
+                        : "",
+                    ].join(" ")}
+                    style={{ top: it.y + HEADER_H }}
+                    title={`${it.display_name} · ${it.elo} · 표본 ${it.vote_count}`}
+                  >
+                    {it.confidence === "표본 부족" && (
+                      <span className="mr-0.5 inline-block size-1 rounded-full bg-badge-low-sample align-middle" />
+                    )}
+                    {it.display_name}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
 
           {blocks.length === 0 && (
             <p className="py-16 text-center text-sm text-fg-subtle">

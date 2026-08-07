@@ -123,10 +123,7 @@ export default async function MatchupThreadPage({ params }: PageProps<"/matchup/
       <ThreadBody
         programLo={lo}
         programHi={hi}
-        sides={[a, b].map((p) => ({
-          program_id: p.program_id,
-          short: p.university_short_name ?? p.university_name,
-        }))}
+        sides={[a, b].map((p) => ({ program_id: p.program_id, full: label(p) }))}
         reasons={(reasons ?? []) as Reason[]}
         comments={(comments ?? []) as Comment[]}
         isLoggedIn={!!user}

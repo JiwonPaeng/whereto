@@ -105,13 +105,23 @@ export function VoteClient({
 
       if (error) {
         setError(error.message);
+        // 매치업이 상해서 실패한 경우(만료·중복·다른 창) 화면이 막다른 길이 되면 안 된다.
+        // 메시지를 보여준 뒤 새 매치업을 자동으로 불러온다.
+        const stale =
+          error.message.includes("불러올게요") ||
+          error.message.includes("이미 선택을 마친") ||
+          error.message.includes("이미 투표한 조합");
+        if (stale) {
+          setTimeout(() => void loadMatchup(), 1200);
+          return;
+        }
         setPhase("voting");
         return;
       }
       setResult(data as VoteResult);
       setPhase("result");
     },
-    [matchup, phase, supabase],
+    [matchup, phase, supabase, loadMatchup],
   );
 
   const skip = useCallback(async () => {

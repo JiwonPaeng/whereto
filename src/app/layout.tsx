@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 
 // 폰트는 globals.css 에서 Pretendard 를 불러온다 (§13.1).
@@ -15,10 +16,48 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <SiteHeader />
         {children}
         <SiteFooter />
       </body>
     </html>
+  );
+}
+
+/**
+ * 전역 네비게이션.
+ *
+ * ⚠️ 로그인 상태를 읽지 않는다. layout 에서 cookies() 를 건드리면 모든 페이지가
+ * 동적 렌더링으로 바뀌어 §13.3 의 ISR(랭킹 600 / 상세 300)이 통째로 무력화된다.
+ * 대신 "내 정보"를 상태와 무관한 링크로 두고, /profile 이 비로그인 시 /login 으로 보낸다.
+ */
+function SiteHeader() {
+  const nav = [
+    { href: "/vote", label: "투표" },
+    { href: "/ranking", label: "배치표" },
+    { href: "/board/matchup", label: "매치업 토론" },
+    { href: "/profile", label: "내 정보" },
+  ];
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-line bg-surface/95 backdrop-blur">
+      <div className="mx-auto flex max-w-app items-center gap-1 px-3 py-2">
+        <Link href="/" className="mr-2 text-base font-bold text-brand">
+          어디갈래
+        </Link>
+        <nav className="flex items-center gap-0.5 overflow-x-auto">
+          {nav.map((n) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm text-fg-muted transition-colors hover:bg-surface-sunken hover:text-fg"
+            >
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </header>
   );
 }
 
@@ -31,10 +70,8 @@ function SiteFooter() {
     <footer className="mt-auto border-t border-line px-4 py-5 text-2xs text-fg-subtle">
       <div className="mx-auto flex max-w-app flex-wrap items-center gap-x-4 gap-y-2">
         <span className="font-semibold text-fg-muted">어디갈래</span>
-        <a href="/ranking" className="hover:underline">배치표</a>
-        <a href="/board/matchup" className="hover:underline">매치업 토론</a>
-        <a href="/terms" className="hover:underline">이용약관</a>
-        <a href="/privacy" className="hover:underline">개인정보처리방침</a>
+        <Link href="/terms" className="hover:underline">이용약관</Link>
+        <Link href="/privacy" className="hover:underline">개인정보처리방침</Link>
         <span className="ml-auto">
           선호도 투표 결과이며 대학의 교육 품질에 대한 평가가 아닙니다.
         </span>

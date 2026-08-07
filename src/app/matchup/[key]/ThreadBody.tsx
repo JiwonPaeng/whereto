@@ -24,7 +24,11 @@ export type Comment = {
   created_at: string;
 };
 
-export type SideLabel = { program_id: number; short: string };
+/**
+ * 같은 대학끼리 붙는 매치업(예: 서울대 스마트시스템과학과 vs 서울대 의류학과)에서는
+ * 학교명만으로 어느 쪽을 골랐는지 구분되지 않는다. 배지에 학과까지 함께 쓴다.
+ */
+export type SideLabel = { program_id: number; full: string };
 
 export function ThreadBody({
   programLo,
@@ -75,8 +79,8 @@ export function ThreadBody({
     router.refresh();
   }
 
-  const shortOf = (winnerId: number) =>
-    sides.find((s) => s.program_id === winnerId)?.short ?? "";
+  const labelOf = (winnerId: number) =>
+    sides.find((s) => s.program_id === winnerId)?.full ?? "";
 
   return (
     <>
@@ -104,8 +108,8 @@ export function ThreadBody({
               return (
                 <li key={r.vote_id} className="px-3 py-2.5">
                   <div>
-                    <span className="mr-1.5 rounded-sm bg-vote-selected-bg px-1.5 py-0.5 text-2xs font-semibold text-brand">
-                      {shortOf(r.winner_id)}
+                    <span className="mr-1.5 whitespace-nowrap rounded-sm bg-vote-selected-bg px-1.5 py-0.5 text-2xs font-semibold text-brand">
+                      {labelOf(r.winner_id)}
                     </span>
                     <span className="text-sm leading-relaxed text-fg">{r.reason}</span>
                   </div>

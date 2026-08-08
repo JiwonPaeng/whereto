@@ -220,7 +220,10 @@ export function VoteClient({
   const bPct = total ? 100 - aPct : 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-app flex-1 flex-col px-3 py-4 lg:py-8">
+    /* 데스크톱에서 폭을 max-app(1200) 그대로 쓰면 카드 하나가 590px 가 되어
+       가운데 몇 줄만 놓인 빈 판이 된다. 960px 로 좁혀 카드가 내용에 맞게 만든다.
+       세로도 마찬가지 — 아래 grid 의 flex-1 을 lg 에서 풀고 justify-center 로 받는다. */
+    <div className="mx-auto flex w-full max-w-app flex-1 flex-col px-3 py-4 lg:max-w-[60rem] lg:justify-center lg:py-6">
       {error && (
         <p className="mb-3 rounded-md border border-danger-500 bg-surface px-3 py-2 text-sm text-danger-600">
           {error}
@@ -269,7 +272,9 @@ export function VoteClient({
 
       {/* 카드 — 모바일에서도 좌우 분할 (D-010).
           ⚠️ 두 카드는 반드시 같은 토큰을 쓴다. 색으로 구분하지 않는다 (§14.4). */}
-      <div className="grid flex-1 grid-cols-2 gap-2 lg:gap-4">
+      {/* lg:flex-none — 데스크톱에서는 카드가 뷰포트 높이만큼 늘어나지 않게 한다.
+          결과 단계에서 % 막대가 생기면 그만큼만 커진다. */}
+      <div className="grid flex-1 grid-cols-2 gap-2 lg:flex-none lg:gap-5">
         {(["a", "b"] as const).map((side) => {
           const p = matchup?.[side];
           const chosen = result ? result.winner_id === p?.id : false;
@@ -281,7 +286,7 @@ export function VoteClient({
               onClick={() => p && pick(p.id)}
               disabled={phase !== "voting"}
               className={[
-                "relative flex min-h-[46vh] flex-col items-center justify-center rounded-lg border p-3 text-center transition-colors lg:min-h-[52vh] lg:p-8",
+                "relative flex min-h-[46vh] flex-col items-center justify-center rounded-lg border p-3 text-center transition-colors lg:min-h-[20rem] lg:p-7",
                 phase === "result" && chosen
                   ? "border-vote-selected bg-vote-selected-bg"
                   : "border-vote-card-line bg-vote-card",
@@ -298,10 +303,13 @@ export function VoteClient({
                     <Badge>{p!.region_group}</Badge>
                   </div>
 
+                  {/* ⚠️ 학과명을 대학명의 곁다리로 다루지 않는다. §9.1 에서 Program 의
+                      정체성은 실제 학과명이고, 투표는 (대학, 학과) 쌍에 대한 선택이다.
+                      대학명보다 작되 같은 본문색 · 같은 굵기로 읽히게 둔다. */}
                   <div className="break-keep text-xl font-bold leading-tight text-fg lg:text-3xl">
                     {p!.short_name ?? p!.university}
                   </div>
-                  <div className="mt-1 break-keep text-sm text-fg-muted lg:text-xl">
+                  <div className="mt-1.5 break-keep text-base font-semibold leading-snug text-fg lg:mt-2 lg:text-2xl">
                     {p!.display_name}
                   </div>
 
@@ -326,7 +334,7 @@ export function VoteClient({
       </div>
 
       {/* §1.2 서비스의 헌법. 이 문구는 어디서도 바꾸지 않는다. */}
-      <p className="mt-4 text-center text-sm font-medium text-fg lg:text-lg">
+      <p className="mt-4 break-keep text-center text-base font-medium text-fg lg:mt-5 lg:text-xl">
         당신이 이 두 곳을 모두 갈 수 있다면, 어디를 선택하시겠습니까?
       </p>
 

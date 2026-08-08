@@ -22,9 +22,20 @@ export type RankRow = {
   rank_faculty: number | null;
 };
 
-const ROW_H = 16; // 라벨 한 줄 높이 — §14.3 고밀도
-const HEADER_H = 30;
-const COL_W = 140; // 묶음 배경 안쪽 여백을 감안해 조금 넓혔다
+/**
+ * ⚠️ 이 상수들은 실제 렌더 높이와 맞아야 한다. 라벨은 `absolute` 로 y 를 직접 주기 때문에
+ * 폰트가 커지면 자동으로 밀려나지 않고 **그냥 겹친다.**
+ *
+ * ROW_H: 라벨 한 줄 높이. text-2xs(12px) × line-height 1.35 = 16.2px + 여유.
+ * BLOCK_HEAD_H: 대학 이름 배지가 들어갈 자리. 배지는 12px × 1.35 + py-0.5(4px) ≈ 20.2px 이고,
+ *   배지 wrapper 는 flex 라 body 의 line-height strut 을 타지 않는다 —
+ *   **wrapper 를 일반 블록으로 되돌리면 strut(15px × 1.6 = 24px)이 살아나 다시 겹친다.**
+ */
+const ROW_H = 19;
+const BLOCK_HEAD_H = 28;
+const BLOCK_PAD_BOTTOM = 5;
+const HEADER_H = 30; // 차트 상단 여백 (y=0 이 maxElo)
+const COL_W = 148; // 묶음 배경 안쪽 여백을 감안해 조금 넓혔다
 
 /**
  * 세로 스케일은 **데이터 범위에 맞춰 정한다.**
@@ -144,7 +155,10 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
     const colBottoms: number[] = [];
     const blocks: Block[] = [];
     for (const b of raw) {
-      let col = colBottoms.findIndex((bottom) => b.top >= bottom + HEADER_H + 8);
+      // 위 블록의 바닥 + (아래 블록의 헤더 자리 + 숨 쉴 틈) 아래여야 같은 컬럼을 재사용한다.
+      let col = colBottoms.findIndex(
+        (bottom) => b.top >= bottom + BLOCK_PAD_BOTTOM + BLOCK_HEAD_H + 8,
+      );
       if (col === -1) {
         col = colBottoms.length;
         colBottoms.push(0);
@@ -203,8 +217,8 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
 
           {/* 대학 블록. 학과들이 하나의 반투명 묶음 위에 올라간다. */}
           {blocks.map((b) => {
-            const blockTop = b.top + HEADER_H - 24; // 헤더가 들어갈 자리
-            const blockHeight = b.bottom - b.top + 28;
+            const blockTop = b.top + HEADER_H - BLOCK_HEAD_H;
+            const blockHeight = b.bottom - b.top + BLOCK_HEAD_H + BLOCK_PAD_BOTTOM;
 
             return (
               <div
@@ -222,8 +236,13 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                   style={{ top: blockTop, height: blockHeight, left: 0, right: 0 }}
                 />
 
-                <div className="absolute left-0 right-0 text-center" style={{ top: blockTop + 3 }}>
-                  <span className="inline-block rounded-sm bg-brand px-2 py-0.5 text-2xs font-bold text-fg-on-brand">
+                {/* flex 로 감싼다 — 일반 블록이면 body 의 line-height strut 이 살아나
+                    배지보다 큰 줄 상자가 만들어지고, 그만큼 첫 학과 라벨을 파고든다. */}
+                <div
+                  className="absolute left-0 right-0 flex justify-center"
+                  style={{ top: blockTop + 2 }}
+                >
+                  <span className="max-w-full truncate rounded-sm bg-brand px-2 py-0.5 text-2xs font-bold leading-tight text-fg-on-brand">
                     {b.university}
                   </span>
                 </div>

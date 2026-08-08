@@ -27,7 +27,7 @@ export default async function ProfilePage() {
     supabase
       .from("profiles")
       .select(
-        "id, nickname, status, track, age_years, vote_weight, trust_coeff, reputation_raw, reputation_mult, created_at",
+        "id, nickname, status, track, age_years, vote_weight, trust_coeff, reputation_raw, reputation_mult, created_at, is_admin",
       )
       .eq("id", user.id)
       .maybeSingle(),
@@ -88,6 +88,14 @@ export default async function ProfilePage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {profile.is_admin && (
+            <Link
+              href="/admin"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs hover:bg-surface-sunken"
+            >
+              관리
+            </Link>
+          )}
           <Link
             href={`/u/${profile.id}`}
             className="rounded-md border border-line-strong px-3 py-1.5 text-xs hover:bg-surface-sunken"

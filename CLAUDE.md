@@ -54,6 +54,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ⚠️ **RLS로 컬럼을 가릴 수 없다.** 타 유저에게 일부 컬럼만 보여야 하는 곳은 전부 노출 컬럼을 고정한 **뷰**로 처리한다. `public_*` 뷰를 수정할 때는 무엇이 새어나가는지 컬럼 단위로 확인할 것. (§9.6)
 
+⚠️ **Program은 표가 있으면 삭제되지 않는다.** `votes`가 `on delete restrict`로 참조한다. 지우는 게 맞는 상황이라도 `is_active = false`가 정답이다 — 삭제하면 그 표가 만든 지수 이력이 끊긴다. 어드민 "제거" 버튼의 기본 동작도 비활성화다. (§8.5)
+
+⚠️ **어드민 권한은 `profiles.is_admin`이고 부여는 service_role로만 한다.** 컬럼 GRANT가 이용자 UPDATE를 `nickname`·`status`·`track`로 묶어놨기 때문에 성립하는 구조다. **profiles의 UPDATE grant에 컬럼을 추가할 때 이걸 깨뜨리지 말 것.** 화면 가드(`/admin/layout.tsx`)는 권한의 근거가 아니다 — 근거는 `is_admin()`을 확인하는 RPC다. (§8.5)
+
 ⚠️ **`votes`에 INSERT 정책이 없는 것은 실수가 아니다.** 직접 INSERT를 열면 클라이언트가 ELO 값을 지정할 수 있다. 기록은 `vote_submit` RPC로만 이루어진다. (§8.2)
 
 **한 대학에 같은 계열 Program이 여럿인 게 정상이다** — 컴퓨터학과와 인공지능학과가 공존한다. Program의 정체성은 실제 학과명이다.

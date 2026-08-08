@@ -82,10 +82,13 @@ export default async function RankingPage() {
         있습니다.
       </p>
 
-      {/* §12.1 고지 문구 — 하단 배치 (§16 #3 은 구현 중 결정하기로 되어 있었다) */}
+      {/* §12.1 고지 문구 — 하단 배치 (§16 #3) */}
       <p className="mt-2 text-2xs leading-relaxed text-fg-subtle">
         본 지표는 수험생들의 <strong>선호도 투표 결과</strong>이며, 대학의 교육 품질·학문적
-        수준·연구 역량에 대한 평가가 아닙니다.
+        수준·연구 역량에 대한 평가가 아닙니다.{" "}
+        <Link href="/method" className="text-accent hover:underline">
+          산출 방식 보기
+        </Link>
       </p>
     </main>
   );

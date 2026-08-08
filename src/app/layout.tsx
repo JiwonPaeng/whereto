@@ -71,6 +71,9 @@ function SiteFooter() {
     <footer className="mt-auto border-t border-line px-4 py-5 text-2xs text-fg-subtle">
       <div className="mx-auto flex max-w-app flex-wrap items-center gap-x-4 gap-y-2">
         <span className="font-semibold text-fg-muted">어디갈래</span>
+        {/* §1.5 · §8.6 — 이 둘은 지표가 신뢰받기 위한 근거라 상시 노출한다 */}
+        <Link href="/about" className="hover:underline">만든 이유</Link>
+        <Link href="/method" className="hover:underline">지수 산출 방식</Link>
         <Link href="/terms" className="hover:underline">이용약관</Link>
         <Link href="/privacy" className="hover:underline">개인정보처리방침</Link>
         <span className="ml-auto">

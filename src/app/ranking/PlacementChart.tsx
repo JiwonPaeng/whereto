@@ -35,7 +35,7 @@ const ROW_H = 19;
 const BLOCK_HEAD_H = 28;
 const BLOCK_PAD_BOTTOM = 5;
 const HEADER_H = 30; // 차트 상단 여백 (y=0 이 maxElo)
-const COL_W = 148; // 묶음 배경 안쪽 여백을 감안해 조금 넓혔다
+const COL_W = 136; // 레인이 도입되어 폭이 늘었으므로 조금 좁혔다 (라벨 잘림은 측정으로 확인)
 
 /**
  * 세로 스케일은 **데이터 범위에 맞춰 정한다.**
@@ -53,10 +53,38 @@ const MAX_PX_PER_POINT = 60;
  *
  * 의약처럼 소속 대학 수준을 완전히 벗어나는 학과가 있으면, 그 대학 블록이 세로로
  * 지나치게 길어져 다른 대학과 전부 겹치고 컬럼 패킹이 무의미해진다.
- * 다만 조금만 벌어져도 쪼개면 블록이 잘게 부서지므로 임계를 넉넉히 잡는다.
+ *
+ * ⚠️ **인접 낙차만 보면 안 쪼개진다.** 의약 계열은 본체에서 한 번에 뚝 떨어지지 않고
+ * 의예 → 치의 → 약학 → 본체로 계단을 이룬다. 낙차 기준을 계단 하나 크기까지 낮추면
+ * 본체 내부가 잘게 부서지고, 계단 전체를 덮게 높이면 아무것도 안 쪼개진다.
+ * 실측: 41개 대학 중 낙차가 범위의 20%를 넘는 곳이 2곳뿐이었다(서울대 span 307 /
+ * 최대낙차 95).
+ *
+ * 그래서 기준이 둘이다.
+ *   · GAP  — 인접 항목 간 낙차. 진짜 절벽을 잡는다
+ *   · SPAN — **블록이 덮는 지수 폭의 상한.** 계단으로 내려가도 누적 폭이 넘으면 끊는다
  */
-const SPLIT_GAP_RATIO = 0.2; // 전체 지수 범위 대비
-const SPLIT_GAP_MIN = 25; // 최소 지수 격차
+const SPLIT_GAP_RATIO = 0.09; // 전체 지수 범위 대비
+const SPLIT_GAP_MIN = 25;
+const SPLIT_SPAN_RATIO = 0.14; // 한 블록이 덮을 수 있는 지수 폭
+const SPLIT_SPAN_MIN = 60;
+
+/**
+ * 한 **레인**(블록 내부 열)에 담을 항목 수 상한.
+ *
+ * 값으로는 더 쪼갤 수 없는 덩어리가 남는다 — 표가 없는 학과는 전부 소속 대학의 같은
+ * 표시값에 몰려 있어서 낙차도 폭도 0이다. 부산대 67개가 폭 104점 안에 있는데 세로로는
+ * 67 × ROW_H = 1273px 를 차지했다. 화면에 보이는 건 지수 위치가 아니라 밀어내기 결과다.
+ *
+ * ⚠️ **덩어리를 세로로 쪼개 별 블록으로 만들면 안 된다.** 컬럼 패킹이 빈 자리를 찾아
+ * 넣으므로 같은 대학이 차트 폭 전체에 산개한다 — 실측으로 부산대가 컬럼
+ * 352 · 500 · 3756 · 3904 에 흩어졌다. 블록으로 묶는 의미가 사라진다.
+ *
+ * 대신 **블록을 넓혀 내부에서 여러 레인으로 배치한다.** 대학은 하나의 블록으로 남고
+ * 폭만 늘어난다. 항목은 레인에 라운드로빈으로 나눠 각 레인이 같은 지수 구간을 절반
+ * 밀도로 덮게 한다 — 밀어내기가 줄어 위치가 더 정확해진다.
+ */
+const MAX_LANE_ITEMS = 26;
 
 /** 눈금이 8~12개 나오도록 사람이 읽기 좋은 간격을 고른다. */
 function niceStep(range: number): number {
@@ -65,8 +93,17 @@ function niceStep(range: number): number {
   return candidates.find((c) => c >= raw) ?? 1000;
 }
 
-type Placed = RankRow & { y: number };
-type Block = { university: string; campus: string; items: Placed[]; top: number; bottom: number; col: number };
+type Placed = RankRow & { y: number; lane: number };
+type Block = {
+  university: string;
+  campus: string;
+  items: Placed[];
+  top: number;
+  bottom: number;
+  col: number;
+  /** 블록 내부 열 수. 폭 = lanes × COL_W */
+  lanes: number;
+};
 
 export function PlacementChart({ rows }: { rows: RankRow[] }) {
   const [faculty, setFaculty] = useState<"전체" | "인문" | "자연">("전체");
@@ -111,18 +148,22 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
     }
 
     const splitGap = Math.max(SPLIT_GAP_MIN, range * SPLIT_GAP_RATIO);
+    const splitSpan = Math.max(SPLIT_SPAN_MIN, range * SPLIT_SPAN_RATIO);
 
     const raw: Omit<Block, "col">[] = [];
     for (const [key, list] of byUniv) {
       const [university, campus] = key.split("|");
       const sorted = [...list].sort((a, b) => b.elo_display - a.elo_display);
 
-      // 지수가 splitGap 이상 벌어지면 같은 대학이라도 블록을 끊는다.
+      // 절벽(인접 낙차) 또는 누적 폭 초과면 같은 대학이라도 블록을 끊는다.
       const clusters: RankRow[][] = [];
       let current: RankRow[] = [];
       for (const r of sorted) {
         const prev = current[current.length - 1];
-        if (prev && prev.elo_display - r.elo_display > splitGap) {
+        const cliff = prev !== undefined && prev.elo_display - r.elo_display > splitGap;
+        const tooTall =
+          current.length > 0 && current[0].elo_display - r.elo_display > splitSpan;
+        if (cliff || tooTall) {
           clusters.push(current);
           current = [];
         }
@@ -131,20 +172,28 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
       if (current.length > 0) clusters.push(current);
 
       for (const cluster of clusters) {
+        // 항목이 많으면 블록을 넓혀 레인으로 나눈다. 별 블록으로 쪼개지 않는다.
+        const lanes = Math.max(1, Math.ceil(cluster.length / MAX_LANE_ITEMS));
+
+        // 라운드로빈 — 각 레인이 같은 지수 구간을 1/lanes 밀도로 덮는다.
+        // 앞쪽 절반/뒤쪽 절반으로 나누면 레인끼리 높이가 어긋난다.
         const items: Placed[] = [];
-        let cursor = -Infinity;
-        for (const r of cluster) {
+        const cursors = new Array<number>(lanes).fill(-Infinity);
+        cluster.forEach((r, i) => {
+          const lane = i % lanes;
           const ideal = (maxElo - r.elo_display) * pxPerPoint;
-          const y = Math.max(ideal, cursor + ROW_H);
-          items.push({ ...r, y });
-          cursor = y;
-        }
+          const y = Math.max(ideal, cursors[lane] + ROW_H);
+          cursors[lane] = y;
+          items.push({ ...r, y, lane });
+        });
+
         raw.push({
           university,
           campus,
           items,
-          top: items[0].y,
-          bottom: items[items.length - 1].y + ROW_H,
+          lanes,
+          top: Math.min(...items.map((it) => it.y)),
+          bottom: Math.max(...items.map((it) => it.y)) + ROW_H,
         });
       }
     }
@@ -154,16 +203,40 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
     raw.sort((a, b) => a.top - b.top);
     const colBottoms: number[] = [];
     const blocks: Block[] = [];
+    // 위 블록의 바닥 + (아래 블록의 헤더 자리 + 숨 쉴 틈) 아래여야 컬럼을 재사용한다.
+    const clears = (bottom: number, top: number) =>
+      top >= bottom + BLOCK_PAD_BOTTOM + BLOCK_HEAD_H + 8;
+
+    // lanes 개의 **연속된** 컬럼이 필요하다. 나눠 놓으면 대학이 갈라져 보인다.
+    const fits = (c: number, lanes: number, top: number) => {
+      if (c < 0 || c + lanes > colBottoms.length) return false;
+      for (let k = 0; k < lanes; k++) if (!clears(colBottoms[c + k], top)) return false;
+      return true;
+    };
+
+    /*
+     * ⚠️ 한 대학이 여러 블록으로 갈리면 그 블록들이 차트 폭 전체에 흩어진다
+     * (부산대가 컬럼 56 과 3904). **같은 대학이 쓰던 컬럼을 우선 재사용하는 방식은
+     * 시도했고 효과가 전혀 없었다** — 위쪽 블록이 컬럼을 잡은 뒤 다른 대학 블록들이
+     * 같은 컬럼을 덮어써서, 본체 블록이 도착할 때는 이미 막혀 있다.
+     *
+     * 대학별로 컬럼을 예약하면 붙일 수 있지만 컬럼 재사용을 포기해야 한다 —
+     * 41개 대학 × 평균 2.5레인 ≈ 100컬럼 = 14,800px. 압축된 차트와 대학 인접성은
+     * 1,763개 라벨에서 양립하지 않는다. 압축을 택했다.
+     */
     for (const b of raw) {
-      // 위 블록의 바닥 + (아래 블록의 헤더 자리 + 숨 쉴 틈) 아래여야 같은 컬럼을 재사용한다.
-      let col = colBottoms.findIndex(
-        (bottom) => b.top >= bottom + BLOCK_PAD_BOTTOM + BLOCK_HEAD_H + 8,
-      );
+      let col = -1;
+      for (let c = 0; c + b.lanes <= colBottoms.length; c++) {
+        if (fits(c, b.lanes, b.top)) {
+          col = c;
+          break;
+        }
+      }
       if (col === -1) {
         col = colBottoms.length;
-        colBottoms.push(0);
+        for (let k = 0; k < b.lanes; k++) colBottoms.push(0);
       }
-      colBottoms[col] = b.bottom;
+      for (let k = 0; k < b.lanes; k++) colBottoms[col + k] = b.bottom;
       blocks.push({ ...b, col });
     }
 
@@ -225,7 +298,7 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                 // 한 대학이 여러 블록으로 쪼개질 수 있으므로 대표 Program 을 키에 포함한다
                 key={`${b.university}-${b.campus}-${b.items[0].program_id}`}
                 className="absolute"
-                style={{ left: 56 + b.col * COL_W, width: COL_W - 8, top: 0 }}
+                style={{ left: 56 + b.col * COL_W, width: b.lanes * COL_W - 8, top: 0 }}
               >
                 {/* 묶음 배경.
                     반투명이어야 한다 — 불투명하면 지수 눈금선이 가려져
@@ -252,13 +325,15 @@ export function PlacementChart({ rows }: { rows: RankRow[] }) {
                     key={it.program_id}
                     onClick={() => setSelected(it)}
                     className={[
-                      "absolute left-1 right-1 truncate rounded-xs px-1 text-center text-2xs transition-colors hover:bg-surface",
+                      "absolute truncate rounded-xs px-1 text-center text-2xs transition-colors hover:bg-surface",
                       it.confidence === "잠정" ? "text-badge-provisional" : "text-fg",
                       selected?.program_id === it.program_id
                         ? "bg-vote-selected-bg font-semibold ring-1 ring-accent"
                         : "",
                     ].join(" ")}
-                    style={{ top: it.y + HEADER_H }}
+                    // 레인 단위로 가로 위치를 잡는다. left-1/right-1 로는 블록이 넓어져도
+                    // 라벨이 블록 전체 폭으로 늘어나 레인이 겹친다.
+                    style={{ top: it.y + HEADER_H, left: it.lane * COL_W + 4, width: COL_W - 12 }}
                     title={`${it.display_name} · ${it.elo_display} · 표본 ${it.vote_count}`}
                   >
                     {it.confidence === "표본 부족" && (

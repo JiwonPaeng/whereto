@@ -47,8 +47,8 @@ export default async function MethodPage() {
 
       <Article no="2." title="지수는 어떻게 움직이나">
         <p>
-          체스 등에서 쓰는 ELO 방식입니다. 모든 학과는 <strong>{n("elo.initial", 1500)}점</strong>
-          에서 출발하며, 입결이나 외부 순위로 초기값을 채우지 않습니다.
+          체스 등에서 쓰는 ELO 방식입니다. 모든 학과의 지수는{" "}
+          <strong>{n("elo.initial", 1500)}점</strong>에서 출발해, 투표 결과만으로 움직입니다.
         </p>
         <Note>
           {"E = 1 / (1 + 10^((상대 점수 − 내 점수) / 400))"}

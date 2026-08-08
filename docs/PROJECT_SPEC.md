@@ -26,7 +26,7 @@
 
 | | |
 |---|---|
-| 완료 | M0 · M1 (1차 릴리즈 범위) · §10.3 매치업 스레드 · §6.2 프로필 · 마스터 데이터 2단계 · §1.5 · §8.6 · §8.5 어드민 |
+| 완료 | M0 · M1 (1차 릴리즈 범위) · §10.3 매치업 스레드 · §10.6 홈 · §6.2 프로필 · 마스터 데이터 2단계 · §1.5 · §8.6 · §8.5 어드민 |
 | 데이터 | **대학 41 · Program 2,056** (인문 · 자연 · 예체능 293) |
 | 배포 | https://whereto-nine.vercel.app |
 | 미구현 | §7 평판 · §8.3~8.4 어뷰징 배치·rate limit · 일반 게시판 |
@@ -688,7 +688,11 @@ post_reactions / comment_reactions / reports / program_requests
 | `matchup_feedback_submit(token, kind)` | §5.4.1 품질 신호 |
 | `matchup_thread_comment(lo, hi, content, parent, reason_vote_id)` | §10.3 |
 | `my_vote_stats()` | §6.2 내 통계 |
+| `home_feed()` | §10.4 홈 피드 전체를 한 번에 |
+| `program_label(id)` | 목록에 붙일 학과 표기(대학·캠퍼스·학과명) |
+| `admin_stats()` / `admin_program_search·upsert·remove` | §8.5 어드민 |
 | `batch_daily_snapshot()` / `batch_recompute_profile_weights()` | 일 배치 |
+| `prune_matchup_tokens(days)` | 미사용·만료 토큰 정리 |
 | `refresh_ranking_mv()` / `refresh_hot_posts_mv()` | MV 갱신 |
 
 배치·트리거 함수는 `anon`/`authenticated`에서 EXECUTE를 회수한다.
@@ -734,6 +738,34 @@ score = (upvotes - downvotes - 1) / (hours_since_post + 2)^1.5
 - 알림 (내 글 댓글, 답글, 내 이유에 대한 반응). **`auth.users.email`이 비어 있을 수 있음에 주의** (§6.1)
 - 쪽지
 - 팔로우 — **채택하지 않음** (게시판형 개방 구조 유지)
+
+### 10.6 홈 화면 ✅ `/`
+
+**홈은 서비스 소개가 아니라 커뮤니티 첫 화면이다.** 들어온 사람이 바로 누를 것이 있어야
+한다. 소개는 §1.5 `/about` · §8.6 `/method` 가 담당하므로 홈에서 되풀이하지 않는다 —
+기업 소개 웹사이트처럼 보이면 커뮤니티로 인식되지 않는다.
+
+| 블록 | 정렬 기준 |
+|---|---|
+| **즉시 투표** (최상단) | 서버 발급 매치업. 한 표 던지면 `/vote` 로 이어진다 |
+| 현황 | 누적 투표 · 이유 · 학과 · 대학 |
+| 🔥 반응이 뜨거운 매치업 | `이유 + 댓글` 내림차순. **표 수는 "반응"이 아니다** |
+| ⚖️ 박빙 매치업 | 쌍 단위 승수 차 / 표 수. `home.close_min_votes` 이상만 |
+| ⚖️ 지수가 맞붙은 학과 | 위가 비었을 때의 대체. 표시 지수 인접 쌍 |
+| 💬 말이 많은 학과 | 자기가 낀 매치업의 `이유 + 댓글` 합 |
+| ✍️ 최근 선택 이유 | 최신순 |
+
+전부 `home_feed()` 한 번으로 받는다 (§13.3 왕복 비용).
+
+**⚠️ 즉시 투표는 `vote_submit` 에 `p_anon_id` 를 반드시 넘긴다.** 빼면 `v_profile` 과
+`p_anon_id` 가 모두 null 이 되어 `weight_applied = 0` 으로 기록된다 — 표는 남지만 지수는
+움직이지 않고 중복 검사도 건너뛴다. **화면상 아무 이상이 없어 조용히 틀린다.**
+
+**⚠️ "박빙 매치업"은 부트스트랩 구간에서 비어 있는 것이 정상이다.** §5.4 매칭이 표를
+2,056개 학과에 퍼뜨려 같은 쌍이 좀처럼 반복되지 않는다(839표 / 839쌍). 홈에 빈 상자를
+두면 "사람 없는 사이트"로 보이므로 **"지수가 맞붙은 학과"로 대체**한다. 이쪽은 같은 계열 ·
+서로 다른 대학 · 양쪽 모두 표가 있는 경우만 뽑는다 — 같은 대학 쌍을 넣으면 shrinkage가
+만든 산술적 동률을 관측 결과처럼 보여주게 된다 (§5.4).
 
 ---
 
@@ -879,8 +911,14 @@ ISR 페이지는 쿠키를 읽지 않는 `createPublicClient()`를 쓴다.
 |---|---|---|
 | `daily-rating-snapshot` | `0 21 * * *` | `rating_history` 적재 |
 | `daily-profile-weights` | `10 21 * * *` | `age_years`·`vote_weight` 재계산 |
+| `prune-matchup-tokens` | `5 21 * * *` | 미사용·만료 토큰 정리 |
 | `refresh-ranking-mv` | `*/10 * * * *` | 배치표 MV |
 | `refresh-hot-posts-mv` | `*/5 * * * *` | 인기글 MV |
+
+**⚠️ `matchup_tokens` 는 매치업을 띄울 때마다 한 행씩 늘어난다.** 홈과 `/vote` 둘 다
+발급하므로 조회량에 비례해 커진다. `prune_matchup_tokens()` 는 **소비된 토큰과
+피드백이 달린 토큰을 남긴다** — `matchup_feedback` 이 `on delete cascade` 로 참조해서,
+조건 없이 지우면 §5.4.1 품질 신호가 함께 사라진다.
 
 **Realtime 미사용** — 동시 접속자당 커넥션 비용이 크고 실시간 갱신의 가치가 낮다.
 

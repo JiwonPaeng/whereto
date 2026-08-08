@@ -58,6 +58,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ⚠️ **어드민 권한은 `profiles.is_admin`이고 부여는 service_role로만 한다.** 컬럼 GRANT가 이용자 UPDATE를 `nickname`·`status`·`track`로 묶어놨기 때문에 성립하는 구조다. **profiles의 UPDATE grant에 컬럼을 추가할 때 이걸 깨뜨리지 말 것.** 화면 가드(`/admin/layout.tsx`)는 권한의 근거가 아니다 — 근거는 `is_admin()`을 확인하는 RPC다. (§8.5)
 
+⚠️ **`vote_submit`을 부를 때 `p_anon_id`를 빠뜨리면 조용히 틀린다.** 비로그인 상태에서 이 값이 없으면 `weight_applied = 0`으로 기록된다 — 표는 남는데 지수는 안 움직이고 중복 검사도 건너뛴다. 에러도 없고 화면도 정상이다. 투표 진입점을 새로 만들 때마다 확인할 것. (§10.6, D-016)
+
 ⚠️ **`votes`에 INSERT 정책이 없는 것은 실수가 아니다.** 직접 INSERT를 열면 클라이언트가 ELO 값을 지정할 수 있다. 기록은 `vote_submit` RPC로만 이루어진다. (§8.2)
 
 **한 대학에 같은 계열 Program이 여럿인 게 정상이다** — 컴퓨터학과와 인공지능학과가 공존한다. Program의 정체성은 실제 학과명이다.
